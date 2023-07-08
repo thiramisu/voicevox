@@ -37,7 +37,7 @@ export class UndoStack<T extends Record<string, unknown>> {
     return this.stack[this.index];
   }
 
-  reverse(data: T): T {
+  protected reverse(data: T): T {
     return data;
   }
 
@@ -48,7 +48,7 @@ export class UndoStack<T extends Record<string, unknown>> {
 import { QInput } from "quasar";
 
 type EditDirection = "start" | "end";
-type QInputUndoData = {
+type OptionalQInputUndoData = {
   textBefore?: string; // 何のテキストが変わったか
   textAfter?: string; // 何のテキストに変わったか
   selectionBasePoint?: number; // 入力の基準点
@@ -56,52 +56,48 @@ type QInputUndoData = {
   isSelectedBefore?: boolean; // 変わる前に範囲選択されていたか
   isSelectedAfter?: boolean; // 変わった後に範囲選択されていたか
 };
+type QInputUndoData = {
+  textBefore: string; // 何のテキストが変わったか
+  textAfter: string; // 何のテキストに変わったか
+  selectionBasePoint: number; // 入力の基準点
+  editDirection: EditDirection; // 入力の基準点に対してどちら側のテキストが変更されるか
+  isSelectedBefore: boolean; // 変わる前に範囲選択されていたか
+  isSelectedAfter: boolean; // 変わった後に範囲選択されていたか
+};
 
 // FIXME: 再現できていない挙動
 //   undo時の範囲指定
 //   範囲選択状態から全角入力したあとundoすると、一回範囲削除されてからIMEが追加される挙動が再現できていない
-
+// FIXME: selectionDirectionの考慮
 export class QInputUndoStack extends UndoStack<QInputUndoData> {
   constructor(private qInput: QInput) {
     super();
   }
 
-  push(
-    {
-      textBefore,
-      textAfter,
-      selectionBasePoint,
-      editDirection,
-      isSelectedBefore,
-      isSelectedAfter,
-    }: QInputUndoData = {
-      textBefore: this.textBefore,
-      textAfter: "",
-      selectionBasePoint: this.selectionStart,
-      editDirection: "end",
-      isSelectedBefore: this.isRangedSelection,
-      isSelectedAfter: false,
-    }
-  ) {
+  push({
+    textBefore,
+    textAfter,
+    selectionBasePoint,
+    editDirection,
+    isSelectedBefore,
+    isSelectedAfter,
+  }: OptionalQInputUndoData = {}) {
     super.push({
-      textBefore,
-      textAfter,
-      selectionBasePoint,
-      editDirection,
-      isSelectedBefore,
-      isSelectedAfter,
+      textBefore: textBefore ?? this.textBefore,
+      textAfter: textAfter ?? "",
+      selectionBasePoint: selectionBasePoint ?? this.selectionStart,
+      editDirection: editDirection ?? "start",
+      isSelectedBefore: isSelectedBefore ?? this.isRangedSelection,
+      isSelectedAfter: isSelectedAfter ?? false,
     });
   }
 
-  reverse(data: QInputUndoData) {
-    return {
-      textBefore: data.textAfter,
-      textAfter: data.textBefore,
-      isSelectedBefore: data.isSelectedAfter,
-      isSelectedAfter: data.isSelectedBefore,
-      selectionBasePoint: data.selectionBasePoint,
-      editDirection: data.editDirection,
-    };
+  undo() {
+    return this.action(super.undo());
+  }
+
+  redo() {
+    return this.action(super.redo());
   }
 
   setEventListener(element: HTMLInputElement) {
@@ -175,7 +171,7 @@ export class QInputUndoStack extends UndoStack<QInputUndoData> {
         // 削除 (Delete)
         case "deleteContentForward":
           this.push({
-            editDirection: "start",
+            editDirection: "end",
           });
           return;
         // 貼り付け
@@ -240,6 +236,28 @@ export class QInputUndoStack extends UndoStack<QInputUndoData> {
     this._nativeEl = nativeEl;
 
     return this._nativeEl;
+  }
+
+  protected reverse(data: QInputUndoData) {
+    return {
+      textBefore: data.textAfter,
+      textAfter: data.textBefore,
+      isSelectedBefore: data.isSelectedAfter,
+      isSelectedAfter: data.isSelectedBefore,
+      selectionBasePoint: data.selectionBasePoint,
+      editDirection: data.editDirection,
+    };
+  }
+
+  private action(data: QInputUndoData | undefined) {
+    if (data === undefined) return data;
+    this.nativeEl.setRangeText(
+      data.textAfter,
+      data.selectionBasePoint,
+      data.textBefore.length,
+      data.isSelectedAfter ? "select" : data.editDirection
+    );
+    return data;
   }
 
   private _nativeEl: HTMLInputElement | HTMLTextAreaElement | undefined;

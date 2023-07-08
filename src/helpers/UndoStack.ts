@@ -70,8 +70,15 @@ type QInputUndoData = {
 //   範囲選択状態から全角入力したあとundoすると、一回範囲削除されてからIMEが追加される挙動が再現できていない
 // FIXME: selectionDirectionの考慮
 export class QInputUndoStack extends UndoStack<QInputUndoData> {
-  constructor(private qInput: QInput) {
-    super();
+  lookAt(qInput: QInput) {
+    const nativeEl = qInput.nativeEl;
+    if (nativeEl === undefined) {
+      throw new Error("nativeEl の取得に失敗しました。");
+    }
+    this._nativeEl = nativeEl;
+    this.clear();
+
+    return this._nativeEl;
   }
 
   push({
@@ -100,7 +107,7 @@ export class QInputUndoStack extends UndoStack<QInputUndoData> {
     return this.action(super.redo());
   }
 
-  setEventListener(element: HTMLInputElement) {
+  setEventListener(element: HTMLElement) {
     // 一つの入力に対しての発火順で上から並んでいます
 
     // 貼り付け時にクリップボードのデータだけ取っておく
@@ -225,16 +232,9 @@ export class QInputUndoStack extends UndoStack<QInputUndoData> {
   }
 
   get nativeEl() {
-    return this._nativeEl || this.initAndGetNativeEl();
-  }
-
-  private initAndGetNativeEl() {
-    const nativeEl = this.qInput.nativeEl;
-    if (nativeEl === undefined) {
-      throw new Error("nativeEl の取得に失敗しました。");
+    if (this._nativeEl === undefined) {
+      throw new Error("nativeElが未定義です");
     }
-    this._nativeEl = nativeEl;
-
     return this._nativeEl;
   }
 

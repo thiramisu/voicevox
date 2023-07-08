@@ -1,5 +1,5 @@
 <template>
-  <div class="audio-cell">
+  <div ref="hoge" class="audio-cell">
     <q-icon
       v-if="isActiveAudioCell"
       name="arrow_right"
@@ -65,6 +65,7 @@ import { QInput } from "quasar";
 import CharacterButton from "./CharacterButton.vue";
 import { useStore } from "@/store";
 import { AudioKey, Voice } from "@/type/preload";
+import { QInputUndoStack } from "@/helpers/UndoStack";
 
 const props =
   defineProps<{
@@ -159,6 +160,7 @@ const pushAudioText = async () => {
 };
 
 const setActiveAudioKey = () => {
+  init();
   store.dispatch("SET_ACTIVE_AUDIO_KEY", { audioKey: props.audioKey });
 };
 const isEnableSplitText = computed(() => store.state.splitTextWhenPaste);
@@ -273,6 +275,16 @@ const blurCell = (event?: KeyboardEvent) => {
 
 // フォーカス
 const textfield = ref<QInput>();
+const hoge = ref<HTMLElement>();
+let hasInit = false;
+const init = () => {
+  if (hasInit || textfield.value === undefined || hoge.value === undefined)
+    return;
+  hasInit = true;
+  const undoStack = new QInputUndoStack();
+  undoStack.setEventListener(hoge.value);
+  undoStack.lookAt(textfield.value);
+};
 
 // 複数エンジン
 const isMultipleEngine = computed(() => store.state.engineIds.length > 1);

@@ -75,7 +75,7 @@ export class QInputUndoStack extends UndoStack<QInputUndoData> {
       isSelectedBefore,
       isSelectedAfter,
     }: QInputUndoData = {
-      textBefore: this.selectionText,
+      textBefore: this.textBefore,
       textAfter: "",
       selectionBasePoint: this.selectionStart,
       editDirection: "end",
@@ -112,12 +112,16 @@ export class QInputUndoStack extends UndoStack<QInputUndoData> {
       this.textAfter = event.clipboardData?.getData("text") ?? "";
     });
 
+    element.addEventListener("compositionstart", (event: CompositionEvent) => {
+      this.textBefore = event.data;
+    });
+
     // 選択範囲の取得
     element.addEventListener("beforeinput", (event: InputEvent) => {
       this.isRangedSelection = this.selectionStart !== this.selectionEnd;
 
       if (this.isRangedSelection) {
-        this.selectionText = this.nativeEl.value.slice(
+        this.textBefore = this.nativeEl.value.slice(
           this.selectionStart,
           this.selectionEnd
         );
@@ -126,14 +130,14 @@ export class QInputUndoStack extends UndoStack<QInputUndoData> {
         switch (event.inputType) {
           // 削除準備 (BackSpace)
           case "deleteContentBackward":
-            this.selectionText = this.nativeEl.value.slice(
+            this.textBefore = this.nativeEl.value.slice(
               this.selectionStart - 1,
               this.selectionEnd
             );
             return;
           // 削除準備 (Delete)
           case "deleteContentForward":
-            this.selectionText = this.nativeEl.value.slice(
+            this.textBefore = this.nativeEl.value.slice(
               this.selectionStart,
               this.selectionEnd + 1
             );
@@ -141,7 +145,7 @@ export class QInputUndoStack extends UndoStack<QInputUndoData> {
           // TODO: "deleteWordBackward" (Ctrl + BackSpace)
           // TODO: "deleteWordForward" (Ctrl + Delete)
         }
-        this.selectionText = "";
+        this.textBefore = "";
       }
     });
 
@@ -212,16 +216,12 @@ export class QInputUndoStack extends UndoStack<QInputUndoData> {
     });
 
     // IME
-    element.addEventListener("compositionstart", (event: CompositionEvent) => {
-      this.imeBefore = event.data;
-    });
     element.addEventListener("compositionend", (event: CompositionEvent) => {
       // 入力を取り消した場合
-      if (this.imeBefore === event.data) {
+      if (this.textBefore === event.data) {
         return;
       }
       this.push({
-        textBefore: this.imeBefore,
         textAfter: event.data,
         isSelectedBefore: false,
       });
@@ -243,10 +243,9 @@ export class QInputUndoStack extends UndoStack<QInputUndoData> {
   }
 
   private _nativeEl: HTMLInputElement | HTMLTextAreaElement | undefined;
-  private selectionText = "";
+  private textBefore = "";
   private textAfter = "";
   private isRangedSelection = false;
-  private imeBefore = "";
   private get selectionStart() {
     return this.nativeEl.selectionStart ?? 0;
   }

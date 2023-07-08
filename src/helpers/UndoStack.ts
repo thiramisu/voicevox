@@ -61,7 +61,6 @@ type QInputUndoData = {
 //   undo時の範囲指定
 //   範囲選択状態から全角入力したあとundoすると、一回範囲削除されてからIMEが追加される挙動が再現できていない
 
-// NOTE: <input type="text">ではそもそも受け付けない改行などではonInputイベントが発火しない
 export class QInputUndoStack extends UndoStack<QInputUndoData> {
   constructor(private qInput: QInput) {
     super();
@@ -80,7 +79,7 @@ export class QInputUndoStack extends UndoStack<QInputUndoData> {
       textAfter: "",
       selectionBasePoint: this.selectionStart,
       editDirection: "end",
-      isSelectedBefore: this.selectionText.length > 0,
+      isSelectedBefore: this.isRangedSelection,
       isSelectedAfter: false,
     }
   ) {
@@ -146,8 +145,12 @@ export class QInputUndoStack extends UndoStack<QInputUndoData> {
       }
     });
 
-    // FIXME: 型エラー
-    element.addEventListener("input", (event: InputEvent) => {
+    // NOTE: <input type="text">でそもそも受け付けない改行を入力された場合や
+    //       範囲選択なしで切り取りされた場合などは発火しない
+    element.addEventListener("input", (event: Event) => {
+      if (!(event instanceof InputEvent)) {
+        throw new Error("inputイベントを検出できませんでした。");
+      }
       switch (event.inputType) {
         // IME中
         case "insertCompositionText":

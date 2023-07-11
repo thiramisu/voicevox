@@ -38,6 +38,8 @@
       @focus="setActiveAudioKey()"
       @keydown.prevent.up.exact="moveUpCell"
       @keydown.prevent.down.exact="moveDownCell"
+      @keydown.prevent.ctrl.z.exact="undoStack.undo()"
+      @keydown.prevent.ctrl.y.exact="undoStack.redo()"
       @mouseup.right="onRightClickTextField"
     >
       <template #error>
@@ -276,12 +278,12 @@ const blurCell = (event?: KeyboardEvent) => {
 // フォーカス
 const textfield = ref<QInput>();
 const hoge = ref<HTMLElement>();
+const undoStack = new QInputUndoStack();
 let hasInit = false;
 const init = () => {
   if (hasInit || textfield.value === undefined || hoge.value === undefined)
     return;
   hasInit = true;
-  const undoStack = new QInputUndoStack();
   undoStack.setEventListener(hoge.value);
   undoStack.lookAt(textfield.value);
 };

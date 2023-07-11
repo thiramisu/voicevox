@@ -47,28 +47,14 @@ export class UndoStack<T extends Record<string, unknown>> {
 
 import { QInput } from "quasar";
 
-type EditDirection = "start" | "end";
-type OptionalQInputUndoData = {
-  textBefore?: string; // 何のテキストが変わったか
-  textAfter?: string; // 何のテキストに変わったか
-  selectionBasePoint?: number; // 入力の基準点
-  editDirection?: EditDirection; // 操作終了時に、変更されたテキストの最初と最後のどちらにカーソルがあるか
-  isSelectedBefore?: boolean; // 変わる前に範囲選択されていたか
-  isSelectedAfter?: boolean; // 変わった後に範囲選択されていたか
-};
 type QInputUndoData = {
-  textBefore: string; // 何のテキストが変わったか
-  textAfter: string; // 何のテキストに変わったか
-  selectionBasePoint: number; // 入力の基準点
-  editDirection: EditDirection; // 入力の基準点に対してどちら側のテキストが変更されるか
-  isSelectedBefore: boolean; // 変わる前に範囲選択されていたか
-  isSelectedAfter: boolean; // 変わった後に範囲選択されていたか
+  value: string;
+  selectionStart: number;
+  selectionEnd: number;
 };
 
 // FIXME: 再現できていない挙動
-//   undo時の範囲指定
 //   範囲選択状態から全角入力したあとundoすると、一回範囲削除されてからIMEが追加される挙動が再現できていない
-// FIXME: selectionDirectionの考慮
 export class QInputUndoStack extends UndoStack<QInputUndoData> {
   lookAt(qInput: QInput) {
     const nativeEl = qInput.nativeEl;
@@ -81,136 +67,83 @@ export class QInputUndoStack extends UndoStack<QInputUndoData> {
     return this._nativeEl;
   }
 
-  push({
-    textBefore,
-    textAfter,
-    selectionBasePoint,
-    editDirection,
-    isSelectedBefore,
-    isSelectedAfter,
-  }: OptionalQInputUndoData = {}) {
-    super.push({
-      textBefore: textBefore ?? this.textBefore,
-      textAfter: textAfter ?? "",
-      selectionBasePoint: selectionBasePoint ?? this.selectionStart,
-      editDirection: editDirection ?? "start",
-      isSelectedBefore: isSelectedBefore ?? this.isRangedSelection,
-      isSelectedAfter: isSelectedAfter ?? false,
-    });
+  /**
+   * 直前の入力タイプと比較し、違ったなら追加する。
+   * @param inputType 入力タイプ。`undefined`なら必ず追加する。
+   * @returns 追加されたなら`true`、されなかったら`false`を返す。
+   */
+  pushIfNeeded(inputType: string | undefined) {
+    const text = this.nativeEl.value;
+    // 入力の種類の「境目」なら
+    if (inputType === undefined || this.inputTypeBefore !== inputType) {
+      this.inputTypeBefore = inputType;
+      // TODO: 前の文字列と同じならスキップ
+      console.log("push: " + text);
+      super.push({
+        value: text,
+        selectionStart: this.selectionStart,
+        selectionEnd: this.selectionEnd,
+      });
+      return true;
+    }
+    return false;
   }
 
   undo() {
+    console.log("try undo");
+    this.pushIfNeeded("undo");
+    super.undo();
     return this.action(super.undo());
   }
 
   redo() {
+    console.log("try redo");
     return this.action(super.redo());
   }
 
   setEventListener(element: HTMLElement) {
     // 一つの入力に対しての発火順で上から並んでいます
 
-    // 貼り付け時にクリップボードのデータだけ取っておく
-    element.addEventListener("paste", (event: ClipboardEvent) => {
-      this.textAfter = event.clipboardData?.getData("text") ?? "";
-    });
-
-    element.addEventListener("compositionstart", (event: CompositionEvent) => {
-      this.textBefore = event.data;
-    });
-
-    // 選択範囲の取得
-    element.addEventListener("beforeinput", (event: InputEvent) => {
-      this.isRangedSelection = this.selectionStart !== this.selectionEnd;
-
-      if (this.isRangedSelection) {
-        this.textBefore = this.nativeEl.value.slice(
-          this.selectionStart,
-          this.selectionEnd
-        );
-      } else {
-        // 範囲選択なしの場合の削除(BackSpace/Delete) 準備
-        switch (event.inputType) {
-          // 削除準備 (BackSpace)
-          case "deleteContentBackward":
-            this.textBefore = this.nativeEl.value.slice(
-              this.selectionStart - 1,
-              this.selectionEnd
-            );
-            return;
-          // 削除準備 (Delete)
-          case "deleteContentForward":
-            this.textBefore = this.nativeEl.value.slice(
-              this.selectionStart,
-              this.selectionEnd + 1
-            );
-            return;
-          // TODO: "deleteWordBackward" (Ctrl + BackSpace)
-          // TODO: "deleteWordForward" (Ctrl + Delete)
-        }
-        this.textBefore = "";
-      }
+    element.addEventListener("compositionstart", () => {
+      this.pushIfNeeded(undefined);
     });
 
     // NOTE: <input type="text">でそもそも受け付けない改行を入力された場合や
     //       範囲選択なしで切り取りされた場合などは発火しない
-    element.addEventListener("input", (event: Event) => {
+    element.addEventListener("beforeinput", (event: InputEvent) => {
+      // 選択範囲の取得
+      const isRangedSelection = this.selectionStart !== this.selectionEnd;
+
       if (!(event instanceof InputEvent)) {
         throw new Error("inputイベントを検出できませんでした。");
       }
       switch (event.inputType) {
-        // IME中
-        case "insertCompositionText":
+        case "insertCompositionText": // IME中
           // 各専用イベントで判定
           return;
-        // 改行 (event.data === null)
-        case "insertLineBreak":
-          this.push({
-            // textareaの改行コードはOSに関係なく`\n`らしい
-            textAfter: "\n",
-          });
+        case "deleteByDrag": // テキスト欄内で範囲選択→ドラッグで位置を移動した時
+          // "insertFromDrop" が直後に実行されるため
           return;
-        // 切り取り / 削除 (BackSpace) or 範囲削除 (BackSpace / Delete)
-        case "deleteByCut":
-        case "deleteContentBackward":
-          this.push();
+        case "deleteContentBackward": //  削除 (BackSpace) or 範囲削除 (BackSpace / Delete)
+        case "deleteContentForward": // 削除 (Delete)
+          // 範囲選択されていたなら絶対
+          // 範囲選択でないなら前のイベントと比較
+          this.pushIfNeeded(isRangedSelection ? undefined : event.inputType);
           return;
-        // 削除 (Delete)
-        case "deleteContentForward":
-          this.push({
-            editDirection: "end",
-          });
-          return;
-        // 貼り付け
-        case "insertFromPaste":
-          this.push({
-            textAfter: this.textAfter,
-          });
-          // クリップボードのデータなので一応削除
-          this.textAfter = "";
-          return;
-        // テキスト欄内で範囲選択→ドラッグで位置を移動した時
-        case "deleteByDrag":
-          this.push();
-          return;
-        // ドロップ
-        case "insertFromDrop":
-          // TODO: 直前のイベントが"deleteByDrag"だったら2つ飛ばす
-          this.push({
-            textBefore: "",
-            textAfter: this.nativeEl.value.slice(
-              this.selectionStart,
-              this.selectionEnd
-            ),
-            isSelectedAfter: true,
-          });
+        case "insertLineBreak": // 改行 (event.data === null)
+        case "deleteByCut": // 切り取り
+        case "insertFromPaste": // 貼り付け
+        case "insertFromDrop": // ドロップ
+        case "deleteWordBackward": // 単語単位で削除 (Ctrl + BackSpace)
+        case "deleteWordForward": // 単語単位で削除 (Ctrl + Delete)
+          this.pushIfNeeded(undefined);
           return;
       }
       // キーボード入力
       if (event.data !== null) {
-        this.push({
-          textAfter: event.data,
-        });
+        this.pushIfNeeded(
+          event.data === " " ? "insertWhiteSpace" : "insertString"
+        );
         return;
       }
       throw new Error(
@@ -219,15 +152,8 @@ export class QInputUndoStack extends UndoStack<QInputUndoData> {
     });
 
     // IME
-    element.addEventListener("compositionend", (event: CompositionEvent) => {
-      // 入力を取り消した場合
-      if (this.textBefore === event.data) {
-        return;
-      }
-      this.push({
-        textAfter: event.data,
-        isSelectedBefore: false,
-      });
+    element.addEventListener("compositionend", () => {
+      this.pushIfNeeded(undefined);
     });
   }
 
@@ -238,32 +164,17 @@ export class QInputUndoStack extends UndoStack<QInputUndoData> {
     return this._nativeEl;
   }
 
-  protected reverse(data: QInputUndoData) {
-    return {
-      textBefore: data.textAfter,
-      textAfter: data.textBefore,
-      isSelectedBefore: data.isSelectedAfter,
-      isSelectedAfter: data.isSelectedBefore,
-      selectionBasePoint: data.selectionBasePoint,
-      editDirection: data.editDirection,
-    };
-  }
-
   private action(data: QInputUndoData | undefined) {
     if (data === undefined) return data;
-    this.nativeEl.setRangeText(
-      data.textAfter,
-      data.selectionBasePoint,
-      data.textBefore.length,
-      data.isSelectedAfter ? "select" : data.editDirection
-    );
+
+    this.nativeEl.value = data.value;
+    this.nativeEl.selectionStart = data.selectionStart;
+    this.nativeEl.selectionEnd = data.selectionEnd;
     return data;
   }
 
   private _nativeEl: HTMLInputElement | HTMLTextAreaElement | undefined;
-  private textBefore = "";
-  private textAfter = "";
-  private isRangedSelection = false;
+  private inputTypeBefore: string | undefined = undefined;
   private get selectionStart() {
     return this.nativeEl.selectionStart ?? 0;
   }

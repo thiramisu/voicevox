@@ -33,8 +33,9 @@ export class UndoStack<T extends Record<string, unknown>> {
   }
 
   clear() {
-    this.stack = [];
+    this.stack.length = this.isTransition ? 0 : 1;
     this.index = -1;
+    return this.stack[0];
   }
 
   /**

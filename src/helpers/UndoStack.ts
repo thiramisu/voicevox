@@ -102,6 +102,13 @@ export class QInputUndoStack extends UndoStack<QInputUndoData> {
    * @returns 追加されたなら`true`、されなかったら`false`を返す。
    */
   pushIfNeeded(inputType: string | undefined) {
+    if (
+      this.inputTypeBefore === "insertWhiteSpace" &&
+      inputType === "insertString"
+    ) {
+      this.inputTypeBefore = inputType;
+      return false;
+    }
     // 入力の種類の「境目」なら
     if (
       this.inputTypeBefore !== "redo" &&
@@ -182,7 +189,7 @@ export class QInputUndoStack extends UndoStack<QInputUndoData> {
       // キーボード入力
       if (event.data !== null) {
         this.pushIfNeeded(
-          event.data === "_" ? "insertWhiteSpace" : "insertString"
+          event.data === " " ? "insertWhiteSpace" : "insertString"
         );
         return;
       }

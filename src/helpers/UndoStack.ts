@@ -1,7 +1,13 @@
 export class UndoStack<T extends Record<string, unknown>> {
   /**
-   * @param isTransition 遷移過程の記録ならtrue, 状態の記録ならfalse
-   * Undoできるかの基準が`true`ならcurrentIndex >= 0`false`ならcurrentIndex >= 1
+   * @param isTransition 操作の記録ならtrue, 状態の記録ならfalse。
+   *   操作の記録か状態の記録かについて;
+   *   操作の記録の場合:
+   *   currentIndex <= -1 の場合にUndoできません。
+   *   undo時にreverse(data);を通したデータが返ります。
+   *   状態の記録の場合:
+   *   currentIndex <= 0 の場合にUndoできません。
+   *   reverseは通されません。
    */
   constructor(private isTransition: boolean) {
     this.clear();
@@ -37,7 +43,9 @@ export class UndoStack<T extends Record<string, unknown>> {
   undo(): Readonly<T> | undefined {
     if (!this.canUndo) return undefined;
     this.index -= 1;
-    return this.reverse(this.stack[this.index + (this.isTransition ? 1 : 0)]);
+    return this.isTransition
+      ? this.reverse(this.stack[this.index + 1])
+      : this.stack[this.index];
   }
 
   /**

@@ -277,6 +277,7 @@ const blurCell = (event?: KeyboardEvent) => {
 
 // フォーカス
 const textfield = ref<QInput>();
+// TODO: EditorHome.vueとかに紐づけてSET_ACTIVE_AUDIO_KEY時にlookAt()を更新
 const hoge = ref<HTMLElement>();
 const undoStack = new QInputUndoStack();
 let hasInit = false;

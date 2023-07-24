@@ -1,10 +1,18 @@
 <template>
-  <div class="character-portrait-wrapper">
+  <div class="character-portrait-wrapper" @click="talk">
     <span class="character-name">{{ characterName }}</span>
     <span v-if="isMultipleEngine" class="character-engine-name">{{
       engineName
     }}</span>
-    <img :src="portraitPath" class="character-portrait" :alt="characterName" />
+    <div class="relative character-portrait">
+      <img :src="portraitPath" :alt="characterName" />
+      <div
+        v-if="nowSpeechPlaying"
+        class="speech-bubble text-center absolute full-width"
+      >
+        {{ speechBubble }}
+      </div>
+    </div>
     <div v-if="isInitializingSpeaker" class="loading">
       <q-spinner color="primary" size="5rem" :thickness="4" />
     </div>
@@ -12,9 +20,11 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, ref } from "vue";
+import { useQuasar } from "quasar";
 import { useStore } from "@/store";
-import { AudioKey } from "@/type/preload";
+import { AudioItem } from "@/store/type";
+import { AudioKey, EngineId, SpeakerId } from "@/type/preload";
 
 const store = useStore();
 
@@ -78,6 +88,102 @@ const isInitializingSpeaker = computed(() => {
 });
 
 const isMultipleEngine = computed(() => store.state.engineIds.length > 1);
+
+const $q = useQuasar();
+const speechBubble = ref<string>();
+const nowSpeechGenerating = ref(false);
+const nowSpeechPlaying = ref(false);
+let talkData: Record<EngineId, Record<SpeakerId, AudioItem[]>> | undefined =
+  undefined;
+const initTalkData = async () => {
+  talkData = {};
+
+  const { audioItems, audioKeys } = await store.dispatch("PARSE_PROJECT_JSON", {
+    text: await store.dispatch("GET_SPEECH_BUBBLE_PROJECT_FILE"),
+    errorMessagePrefix: "Speech bubble data is invalid.",
+  });
+  if (!(audioKeys instanceof Array)) {
+    return;
+  }
+  for (const audioKey of audioKeys) {
+    const audioItem = audioItems[audioKey];
+    if (!audioItem?.voice) {
+      continue;
+    }
+    const { engineId, speakerId } = audioItem.voice;
+    if (talkData[engineId] === undefined) {
+      talkData[engineId] = {};
+    }
+    if (talkData[engineId][speakerId] === undefined) {
+      talkData[engineId][speakerId] = [];
+    }
+    talkData[engineId][speakerId].push(audioItem);
+  }
+};
+const getRamdomSpeechAudioItem = () => {
+  const audioKey = store.getters.ACTIVE_AUDIO_KEY;
+  if (audioKey === undefined) {
+    return undefined;
+  }
+  const voice = store.state.audioItems[audioKey].voice;
+  const talks = talkData?.[voice.engineId]?.[voice.speakerId];
+  if (talks === undefined || talks.length === 0) {
+    return undefined;
+  }
+  const audioItem = talks[Math.floor(Math.random() * talks.length)];
+  audioItem.voice.styleId = voice.styleId;
+  return audioItem;
+};
+const audioElem = new Audio();
+audioElem.pause();
+const talk = async () => {
+  if (talkData === undefined) {
+    await initTalkData();
+  }
+  if (nowSpeechGenerating.value) {
+    console.log("生成中です。");
+    return;
+  }
+  const audioItem = getRamdomSpeechAudioItem();
+  if (audioItem === undefined) {
+    console.log("対応データが見つかりませんでした。");
+    return;
+  }
+
+  nowSpeechGenerating.value = true;
+
+  let blob = await store.dispatch("GET_AUDIO_CACHE_FROM_AUDIO_ITEM", {
+    audioItem,
+  });
+  if (!blob) {
+    try {
+      blob = await store.dispatch("GENERATE_AUDIO_FROM_AUDIO_ITEM", {
+        audioItem,
+      });
+    } catch (e) {
+      window.electron.logError(e);
+      nowSpeechGenerating.value = false;
+      $q.dialog({
+        title: "生成に失敗しました",
+        message: "エンジンの再起動をお試しください。",
+        ok: {
+          label: "閉じる",
+          flat: true,
+          textColor: "display",
+        },
+      });
+      return;
+    }
+  }
+  speechBubble.value = audioItem.text;
+  nowSpeechGenerating.value = false;
+  nowSpeechPlaying.value = true;
+  await store.dispatch("PLAY_AUDIO_BLOB_WITHOUT_UI_LOCK", {
+    audioElem,
+    audioBlob: blob,
+  });
+  nowSpeechPlaying.value = false;
+};
 </script>
 
 <style scoped lang="scss">
@@ -126,5 +232,13 @@ const isMultipleEngine = computed(() => store.state.engineIds.length > 1);
     justify-content: center;
     align-content: center;
   }
+}
+
+.speech-bubble {
+  background-color: rgba(colors.$background-rgb, 0.7);
+  font-size: 1.2rem;
+  left: 0;
+  text-shadow: 0 0 1px colors.$background;
+  top: calc(50% + 30px);
 }
 </style>

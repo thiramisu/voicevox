@@ -131,6 +131,12 @@ export const indexStore = createPartialStore<IndexStoreTypes>({
     },
   },
 
+  GET_SPEECH_BUBBLE_PROJECT_FILE: {
+    async action() {
+      return await window.electron.getSpeechBubbleProjectFile();
+    },
+  },
+
   GET_HOW_TO_USE_TEXT: {
     async action() {
       return await window.electron.getHowToUseText();

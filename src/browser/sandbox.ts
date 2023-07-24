@@ -19,6 +19,7 @@ import {
   ThemeConf,
 } from "@/type/preload";
 import {
+  speechBubbleProjectFileName,
   ContactTextFileName,
   HowToUseTextFileName,
   OssCommunityInfosFileName,
@@ -46,6 +47,11 @@ export const api: Sandbox = {
     };
     /* eslint-enable @typescript-eslint/no-non-null-assertion */
     return Promise.resolve(appInfo);
+  },
+  getSpeechBubbleProjectFile() {
+    return fetch(toStaticPath(speechBubbleProjectFileName)).then((v) =>
+      v.text()
+    );
   },
   getHowToUseText() {
     return fetch(toStaticPath(HowToUseTextFileName)).then((v) => v.text());

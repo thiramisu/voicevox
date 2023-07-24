@@ -37,6 +37,10 @@ const api: Sandbox = {
     return await ipcRendererInvoke("GET_APP_INFOS");
   },
 
+  getSpeechBubbleProjectFile: async () => {
+    return await ipcRendererInvoke("GET_SPEECH_BUBBLE_PROJECT_FILE");
+  },
+
   getHowToUseText: async () => {
     return await ipcRendererInvoke("GET_HOW_TO_USE_TEXT");
   },

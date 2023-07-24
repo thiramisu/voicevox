@@ -138,6 +138,7 @@ export const defaultToolbarButtonSetting: ToolbarSetting = [
 
 export interface Sandbox {
   getAppInfos(): Promise<AppInfos>;
+  getSpeechBubbleProjectFile(): Promise<string>;
   getHowToUseText(): Promise<string>;
   getPolicyText(): Promise<string>;
   getOssLicenses(): Promise<Record<string, string>[]>;

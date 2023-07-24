@@ -36,6 +36,7 @@ import {
   EngineId,
 } from "./type/preload";
 import {
+  speechBubbleProjectFileName,
   ContactTextFileName,
   HowToUseTextFileName,
   OssCommunityInfosFileName,
@@ -343,6 +344,12 @@ async function uninstallVvppEngine(engineId: EngineId) {
   }
 }
 
+// タップ時のフキダシ用ファイルの読み込み
+const speechBubbleProjectFile = fs.readFileSync(
+  path.join(__static, speechBubbleProjectFileName),
+  "utf-8"
+);
+
 // 使い方テキストの読み込み
 const howToUseText = fs.readFileSync(
   path.join(__static, HowToUseTextFileName),
@@ -587,6 +594,10 @@ ipcMainHandle("GET_APP_INFOS", () => {
     name,
     version,
   };
+});
+
+ipcMainHandle("GET_SPEECH_BUBBLE_PROJECT_FILE", () => {
+  return speechBubbleProjectFile;
 });
 
 ipcMainHandle("GET_HOW_TO_USE_TEXT", () => {

@@ -9,6 +9,7 @@ import {
   PayloadFunction,
 } from "./vuex";
 import { createCommandMutationTree, PayloadRecipeTree } from "./command";
+import { ProjectType } from "./project";
 import {
   AccentPhrase,
   AudioQuery,
@@ -451,6 +452,14 @@ export type AudioStoreTypes = {
     }): boolean;
   };
 
+  PLAY_AUDIO_BLOB_WITHOUT_UI_LOCK: {
+    action(payload: {
+      audioBlob: Blob;
+      audioElem: HTMLAudioElement;
+      audioKey?: AudioKey;
+    }): Promise<boolean>;
+  };
+
   STOP_AUDIO: {
     action(payload: { audioKey: AudioKey }): void;
   };
@@ -877,6 +886,10 @@ export type IndexStoreTypes = {
     getter: Voice[];
   };
 
+  GET_SPEECH_BUBBLE_PROJECT_FILE: {
+    action(): Promise<string>;
+  };
+
   GET_HOW_TO_USE_TEXT: {
     action(): Promise<string>;
   };
@@ -977,6 +990,13 @@ export type ProjectStoreTypes = {
 
   LOAD_PROJECT_FILE: {
     action(payload: { filePath?: string; confirm?: boolean }): boolean;
+  };
+
+  PARSE_PROJECT_JSON: {
+    action(payload: {
+      text: string;
+      errorMessagePrefix: string;
+    }): Promise<ProjectType>;
   };
 
   SAVE_PROJECT_FILE: {

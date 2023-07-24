@@ -1,3 +1,4 @@
+export const speechBubbleProjectFileName = "speechBubble.vvproj";
 export const HowToUseTextFileName = "howtouse.md";
 export const OssCommunityInfosFileName = "ossCommunityInfos.md";
 export const PolicyTextFileName = "policy.md";

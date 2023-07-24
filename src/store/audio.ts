@@ -1771,77 +1771,93 @@ export const audioStore = createPartialStore<AudioStoreTypes>({
   PLAY_AUDIO_BLOB: {
     action: createUILockAction(
       async (
-        { state, commit, dispatch },
+        { dispatch },
         {
           audioBlob,
           audioElem,
           audioKey,
         }: { audioBlob: Blob; audioElem: HTMLAudioElement; audioKey?: AudioKey }
       ) => {
-        audioElem.src = URL.createObjectURL(audioBlob);
-        // 途中再生用の処理
-        if (audioKey) {
-          const accentPhraseOffsets = await dispatch("GET_AUDIO_PLAY_OFFSETS", {
-            audioKey,
-          });
-          if (accentPhraseOffsets.length === 0) {
-            audioElem.currentTime = 0;
-          } else {
-            const startTime =
-              accentPhraseOffsets[state.audioPlayStartPoint ?? 0];
-            if (startTime === undefined) throw Error("startTime === undefined");
-            // 小さい値が切り捨てられることでフォーカスされるアクセントフレーズが一瞬元に戻るので、
-            // 再生に影響のない程度かつ切り捨てられない値を加算する
-            audioElem.currentTime = startTime + 10e-6;
-          }
-        }
-
-        // 一部ブラウザではsetSinkIdが実装されていないので、その環境では無視する
-        if (audioElem.setSinkId) {
-          audioElem
-            .setSinkId(state.savingSetting.audioOutputDevice)
-            .catch((err) => {
-              const stop = () => {
-                audioElem.pause();
-                audioElem.removeEventListener("canplay", stop);
-              };
-              audioElem.addEventListener("canplay", stop);
-              window.electron.showMessageDialog({
-                type: "error",
-                title: "エラー",
-                message: "再生デバイスが見つかりません",
-              });
-              throw new Error(err);
-            });
-        }
-
-        // 再生終了時にresolveされるPromiseを返す
-        const played = async () => {
-          if (audioKey) {
-            commit("SET_AUDIO_NOW_PLAYING", { audioKey, nowPlaying: true });
-          }
-        };
-        audioElem.addEventListener("play", played);
-
-        let paused: () => void;
-        const audioPlayPromise = new Promise<boolean>((resolve) => {
-          paused = () => {
-            resolve(audioElem.ended);
-          };
-          audioElem.addEventListener("pause", paused);
-        }).finally(async () => {
-          audioElem.removeEventListener("play", played);
-          audioElem.removeEventListener("pause", paused);
-          if (audioKey) {
-            commit("SET_AUDIO_NOW_PLAYING", { audioKey, nowPlaying: false });
-          }
+        return await dispatch("PLAY_AUDIO_BLOB_WITHOUT_UI_LOCK", {
+          audioBlob,
+          audioElem,
+          audioKey,
         });
-
-        audioElem.play();
-
-        return audioPlayPromise;
       }
     ),
+  },
+
+  PLAY_AUDIO_BLOB_WITHOUT_UI_LOCK: {
+    async action(
+      { state, commit, dispatch },
+      {
+        audioBlob,
+        audioElem,
+        audioKey,
+      }: { audioBlob: Blob; audioElem: HTMLAudioElement; audioKey?: AudioKey }
+    ) {
+      audioElem.src = URL.createObjectURL(audioBlob);
+      // 途中再生用の処理
+      if (audioKey) {
+        const accentPhraseOffsets = await dispatch("GET_AUDIO_PLAY_OFFSETS", {
+          audioKey,
+        });
+        if (accentPhraseOffsets.length === 0) {
+          audioElem.currentTime = 0;
+        } else {
+          const startTime = accentPhraseOffsets[state.audioPlayStartPoint ?? 0];
+          if (startTime === undefined) throw Error("startTime === undefined");
+          // 小さい値が切り捨てられることでフォーカスされるアクセントフレーズが一瞬元に戻るので、
+          // 再生に影響のない程度かつ切り捨てられない値を加算する
+          audioElem.currentTime = startTime + 10e-6;
+        }
+      }
+
+      // 一部ブラウザではsetSinkIdが実装されていないので、その環境では無視する
+      if (audioElem.setSinkId) {
+        audioElem
+          .setSinkId(state.savingSetting.audioOutputDevice)
+          .catch((err) => {
+            const stop = () => {
+              audioElem.pause();
+              audioElem.removeEventListener("canplay", stop);
+            };
+            audioElem.addEventListener("canplay", stop);
+            window.electron.showMessageDialog({
+              type: "error",
+              title: "エラー",
+              message: "再生デバイスが見つかりません",
+            });
+            throw new Error(err);
+          });
+      }
+
+      // 再生終了時にresolveされるPromiseを返す
+      const played = async () => {
+        if (audioKey) {
+          commit("SET_AUDIO_NOW_PLAYING", { audioKey, nowPlaying: true });
+        }
+      };
+      audioElem.addEventListener("play", played);
+
+      let paused: () => void;
+      const audioPlayPromise = new Promise<boolean>((resolve) => {
+        paused = () => {
+          resolve(audioElem.ended);
+        };
+        audioElem.addEventListener("pause", paused);
+      }).finally(async () => {
+        audioElem.removeEventListener("play", played);
+        audioElem.removeEventListener("pause", paused);
+        if (audioKey) {
+          commit("SET_AUDIO_NOW_PLAYING", { audioKey, nowPlaying: false });
+        }
+      });
+
+      audioElem.play();
+
+      return audioPlayPromise;
+    },
   },
 
   STOP_AUDIO: {

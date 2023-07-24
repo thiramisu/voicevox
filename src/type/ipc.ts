@@ -24,6 +24,11 @@ export type IpcIHData = {
     return: AppInfos;
   };
 
+  GET_SPEECH_BUBBLE_PROJECT_FILE: {
+    args: [];
+    return: string;
+  };
+
   GET_HOW_TO_USE_TEXT: {
     args: [];
     return: string;

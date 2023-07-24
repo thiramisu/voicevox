@@ -238,6 +238,7 @@ const talk = async () => {
   background-color: rgba(colors.$background-rgb, 0.7);
   font-size: 1.2rem;
   left: 0;
+  padding: 0 1rem;
   text-shadow: 0 0 1px colors.$background;
   top: calc(50% + 30px);
 }

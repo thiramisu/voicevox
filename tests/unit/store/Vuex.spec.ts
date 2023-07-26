@@ -5,6 +5,8 @@ import { createStore } from "@/store/vuex";
 import { AllActions, AllGetters, AllMutations, State } from "@/store/type";
 import { commandStore } from "@/store/command";
 import { audioStore, audioCommandStore } from "@/store/audio";
+import { audioGeneratorStore } from "@/store/audioGenerator";
+import { audioPlayerStore } from "@/store/audioPlayer";
 import { projectStore } from "@/store/project";
 import { uiStore } from "@/store/ui";
 import { settingStore } from "@/store/setting";
@@ -32,11 +34,12 @@ describe("store/vuex.js test", () => {
         userCharacterOrder: [],
         audioItems: {},
         audioKeys: [],
-        audioStates: {},
-        audioPlayStartPoint: 0,
+        selectedAccentPhraseIndex: 0,
+        audioKey2BlobId: {},
+        nowPlayingBlobIds: new Set(),
+        nowGeneratingBlobIds: new Set(),
         uiLockCount: 0,
         dialogLockCount: 0,
-        nowPlayingContinuously: false,
         undoCommands: [],
         redoCommands: [],
         inheritAudioInfo: true,
@@ -147,6 +150,8 @@ describe("store/vuex.js test", () => {
       getters: {
         ...uiStore.getters,
         ...audioStore.getters,
+        ...audioGeneratorStore.getters,
+        ...audioPlayerStore.getters,
         ...commandStore.getters,
         ...engineStore.getters,
         ...projectStore.getters,
@@ -160,6 +165,8 @@ describe("store/vuex.js test", () => {
       mutations: {
         ...uiStore.mutations,
         ...audioStore.mutations,
+        ...audioGeneratorStore.mutations,
+        ...audioPlayerStore.mutations,
         ...commandStore.mutations,
         ...engineStore.mutations,
         ...projectStore.mutations,
@@ -173,6 +180,8 @@ describe("store/vuex.js test", () => {
       actions: {
         ...uiStore.actions,
         ...audioStore.actions,
+        ...audioGeneratorStore.actions,
+        ...audioPlayerStore.actions,
         ...commandStore.actions,
         ...engineStore.actions,
         ...projectStore.actions,
@@ -200,9 +209,13 @@ describe("store/vuex.js test", () => {
     assert.isEmpty(store.state.audioItems);
     assert.isArray(store.state.audioKeys);
     assert.isEmpty(store.state.audioKeys);
-    assert.isObject(store.state.audioStates);
-    assert.isEmpty(store.state.audioStates);
-    assert.equal(store.state.audioPlayStartPoint, 0);
+    assert.equal(store.state.selectedAccentPhraseIndex, 0);
+    assert.isObject(store.state.audioKey2BlobIds);
+    assert.isEmpty(store.state.audioKey2BlobIds);
+    assert.isObject(store.state.nowPlayingBlobIds);
+    assert.isEmpty(store.state.nowPlayingBlobIds);
+    assert.isObject(store.state.nowGeneratingBlobIds);
+    assert.isEmpty(store.state.nowGeneratingBlobIds);
     assert.equal(store.state.uiLockCount, 0);
     assert.equal(store.state.nowPlayingContinuously, false);
     assert.isArray(store.state.undoCommands);

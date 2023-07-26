@@ -252,6 +252,7 @@
 import { computed, ref, watch } from "vue";
 import { QInput, useQuasar } from "quasar";
 import { useStore } from "@/store";
+import { BlobId } from "@/store/audioGenerator";
 import { AccentPhrase, UserDictWord } from "@/openapi";
 import {
   convertHiraToKana,
@@ -279,8 +280,6 @@ const dictionaryManageDialogOpenedComputed = computed({
   set: (val) => emit("update:modelValue", val),
 });
 const uiLocked = ref(false); // ダイアログ内でstore.getters.UI_LOCKEDは常にtrueなので独自に管理
-const nowGenerating = ref(false);
-const nowPlaying = ref(false);
 
 const loadingDictState = ref<null | "loading" | "synchronizing">("loading");
 const userDict = ref<Record<string, UserDictWord>>({});
@@ -437,13 +436,21 @@ const changeAccent = async (_: number, accent: number) => {
   }
 };
 
-const audioElem = new Audio();
-audioElem.pause();
+const blobId = ref<BlobId>();
+const nowGenerating = computed(() =>
+  blobId.value !== undefined
+    ? store.state.nowGeneratingBlobIds.has(blobId.value)
+    : false
+);
+const nowPlaying = computed(
+  () =>
+    blobId.value !== undefined &&
+    store.state.nowPlayingBlobIds.has(blobId.value)
+);
 
 const play = async () => {
   if (!accentPhrase.value) return;
 
-  nowGenerating.value = true;
   const audioItem = await store.dispatch("GENERATE_AUDIO_ITEM", {
     text: yomi.value,
     voice: voiceComputed.value,
@@ -454,38 +461,32 @@ const play = async () => {
 
   audioItem.query.accentPhrases = [accentPhrase.value];
 
-  let blob = await store.dispatch("GET_AUDIO_CACHE_FROM_AUDIO_ITEM", {
-    audioItem,
-  });
-  if (!blob) {
-    try {
-      blob = await createUILockAction(
-        store.dispatch("GENERATE_AUDIO_FROM_AUDIO_ITEM", {
-          audioItem,
-        })
-      );
-    } catch (e) {
-      window.electron.logError(e);
-      nowGenerating.value = false;
-      $q.dialog({
-        title: "生成に失敗しました",
-        message: "エンジンの再起動をお試しください。",
-        ok: {
-          label: "閉じる",
-          flat: true,
-          textColor: "display",
-        },
-      });
-      return;
-    }
+  try {
+    await store.dispatch("UNLOAD_AUDIO_BLOB", { blobId: blobId.value });
+    const blobData = await store.dispatch("FETCH_ID_AUDIO_BLOB_PAIR", {
+      audioItem,
+    });
+    blobId.value = blobData.blobId;
+    await store.dispatch("LOAD_AUDIO_BLOB", blobData);
+    await store.dispatch("PLAY_AUDIO_BLOB", { blobId: blobId.value });
+  } catch (e) {
+    window.electron.logError(e);
+    $q.dialog({
+      title: "生成に失敗しました",
+      message: "エンジンの再起動をお試しください。",
+      ok: {
+        label: "閉じる",
+        flat: true,
+        textColor: "display",
+      },
+    });
+    return;
   }
-  nowGenerating.value = false;
-  nowPlaying.value = true;
-  await store.dispatch("PLAY_AUDIO_BLOB", { audioElem, audioBlob: blob });
-  nowPlaying.value = false;
 };
 const stop = () => {
-  audioElem.pause();
+  if (blobId.value !== undefined) {
+    store.dispatch("STOP_AUDIO_BLOB", { blobId: blobId.value });
+  }
 };
 
 // accent phraseにあるaccentと実際に登録するアクセントには差が生まれる

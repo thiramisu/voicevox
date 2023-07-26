@@ -3,6 +3,15 @@ import { Platform } from "quasar";
 import { State } from "@/store/type";
 import { ToolbarButtonTagType, isMac } from "@/type/preload";
 
+export const generateUniqueId = async <T extends string>(datas: unknown) => {
+  const data = new TextEncoder().encode(JSON.stringify(datas));
+  const digest = await crypto.subtle.digest("SHA-256", data);
+  const id = Array.from(new Uint8Array(digest))
+    .map((v) => v.toString(16).padStart(2, "0"))
+    .join("");
+  return id as T;
+};
+
 export function sanitizeFileName(fileName: string): string {
   // \x00 - \x1f: ASCII 制御文字
   //   \x00: Null

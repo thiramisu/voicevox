@@ -34,6 +34,7 @@ import {
   generateAndSaveOneAudioWithDialog,
 } from "@/components/Dialog";
 import { getToolbarButtonName } from "@/store/utility";
+import { getAudioGeneratingErrorMessage } from "@/store/audioGenerator";
 
 type ButtonContent = {
   text: string;
@@ -53,7 +54,7 @@ const canUndo = computed(() => store.getters.CAN_UNDO);
 const canRedo = computed(() => store.getters.CAN_REDO);
 const activeAudioKey = computed(() => store.getters.ACTIVE_AUDIO_KEY);
 const nowPlayingContinuously = computed(
-  () => store.state.nowPlayingContinuously
+  () => store.getters.NOW_PLAYING_CONTINUOUSLY
 );
 
 const undoRedoHotkeyMap = new Map<HotkeyAction, () => HotkeyReturnType>([
@@ -106,18 +107,16 @@ const redo = () => {
 };
 const playContinuously = async () => {
   try {
-    await store.dispatch("PLAY_CONTINUOUSLY_AUDIO");
+    await store.dispatch(
+      "PLAY_AUDIO_CONTINUOUSLY_FROM_AUDIO_KEY_WITH_UI_LOCK",
+      {}
+    );
   } catch (e) {
-    let msg: string | undefined;
-    // FIXME: GENERATE_AUDIO_FROM_AUDIO_ITEMのエラーを変えた場合変更する
-    if (e instanceof Error && e.message === "VALID_MORPHING_ERROR") {
-      msg = "モーフィングの設定が無効です。";
-    } else {
-      window.electron.logError(e);
-    }
     $q.dialog({
       title: "再生に失敗しました",
-      message: msg ?? "エンジンの再起動をお試しください。",
+      message:
+        getAudioGeneratingErrorMessage(e) ??
+        "エンジンの再起動をお試しください。",
       ok: {
         label: "閉じる",
         flat: true,
@@ -172,7 +171,7 @@ const usableButtons: Record<
 > = {
   PLAY_CONTINUOUSLY: {
     click: playContinuously,
-    disable: uiLocked,
+    disable: computed(() => uiLocked.value || nowPlayingContinuously.value),
   },
   STOP: {
     click: stopContinuously,

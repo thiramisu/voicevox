@@ -284,6 +284,7 @@ import {
 } from "@/type/preload";
 import { setHotkeyFunctions } from "@/store/setting";
 import { EngineManifest, Mora } from "@/openapi/models";
+import { getAudioGeneratingErrorMessage } from "@/store/audioGenerator";
 
 const props =
   defineProps<{
@@ -352,11 +353,11 @@ const hotkeyMap = new Map<HotkeyAction, () => HotkeyReturnType>([
       if (
         !uiLocked.value &&
         store.getters.ACTIVE_AUDIO_KEY &&
-        store.state.audioPlayStartPoint !== undefined
+        store.state.selectedAccentPhraseIndex !== undefined
       ) {
         store.dispatch("COMMAND_RESET_SELECTED_MORA_PITCH_AND_LENGTH", {
           audioKey: store.getters.ACTIVE_AUDIO_KEY,
-          accentPhraseIndex: store.state.audioPlayStartPoint,
+          accentPhraseIndex: store.state.selectedAccentPhraseIndex,
         });
       }
     },
@@ -395,12 +396,12 @@ watch(
 const activePointScrollMode = computed(() => store.state.activePointScrollMode);
 
 // 再生開始アクセント句
-const startPoint = computed({
+const selectedAccentPhraseIndex = computed({
   get: () => {
-    return store.state.audioPlayStartPoint;
+    return store.state.selectedAccentPhraseIndex;
   },
-  set: (startPoint) => {
-    store.dispatch("SET_AUDIO_PLAY_START_POINT", { startPoint });
+  set: (index) => {
+    store.dispatch("SET_SELECTED_ACCENT_PHRASE_INDEX", { index });
   },
 });
 // アクティブ(再生されている状態)なアクセント句
@@ -413,17 +414,17 @@ const setPlayAndStartPoint = (accentPhraseIndex: number) => {
 
   if (activePoint.value !== accentPhraseIndex) {
     activePoint.value = accentPhraseIndex;
-    startPoint.value = accentPhraseIndex;
+    selectedAccentPhraseIndex.value = accentPhraseIndex;
   } else {
     // 選択解除で最初から再生できるようにする
     activePoint.value = undefined;
-    startPoint.value = undefined;
+    selectedAccentPhraseIndex.value = undefined;
   }
 };
 
 const lastPitches = ref<number[][]>([]);
 watch(accentPhrases, async (newPhrases) => {
-  activePoint.value = startPoint.value;
+  activePoint.value = selectedAccentPhraseIndex.value;
   // 連続再生時に、最初に選択されていた場所に戻るためにscrollToActivePointを呼ぶ必要があるが、
   // DOMの描画が少し遅いので、nextTickをはさむ
   await nextTick();
@@ -490,23 +491,21 @@ const changeMoraData = (
   }
 };
 
+const blobId = computed(
+  () => store.state.audioKey2BlobId[props.activeAudioKey]
+);
 // audio play
 const play = async () => {
   try {
-    await store.dispatch("PLAY_AUDIO", {
+    await store.dispatch("PLAY_AUDIO_BY_AUDIO_KEY", {
       audioKey: props.activeAudioKey,
     });
   } catch (e) {
-    let msg: string | undefined;
-    // FIXME: GENERATE_AUDIO_FROM_AUDIO_ITEMのエラーを変えた場合変更する
-    if (e instanceof Error && e.message === "VALID_MORPHING_ERROR") {
-      msg = "モーフィングの設定が無効です。";
-    } else {
-      window.electron.logError(e);
-    }
     $q.dialog({
       title: "再生に失敗しました",
-      message: msg ?? "エンジンの再起動をお試しください。",
+      message:
+        getAudioGeneratingErrorMessage(e) ??
+        "エンジンの再起動をお試しください。",
       ok: {
         label: "閉じる",
         flat: true,
@@ -517,19 +516,25 @@ const play = async () => {
 };
 
 const stop = () => {
-  store.dispatch("STOP_AUDIO", { audioKey: props.activeAudioKey });
+  if (blobId.value !== undefined) {
+    store.dispatch("STOP_AUDIO_BLOB", { blobId: blobId.value });
+  }
 };
 
 const nowPlaying = computed(
-  () => store.state.audioStates[props.activeAudioKey]?.nowPlaying
+  () =>
+    blobId.value !== undefined &&
+    store.state.nowPlayingBlobIds.has(blobId.value)
 );
 const nowGenerating = computed(
-  () => store.state.audioStates[props.activeAudioKey]?.nowGenerating
+  () =>
+    blobId.value !== undefined &&
+    store.state.nowGeneratingBlobIds.has(blobId.value)
 );
 
 // continuously play
 const nowPlayingContinuously = computed(
-  () => store.state.nowPlayingContinuously
+  () => store.getters.NOW_PLAYING_CONTINUOUSLY
 );
 
 const audioDetail = ref<HTMLElement>();
@@ -591,7 +596,7 @@ watch(nowPlaying, async (newState) => {
     // 現在再生されているaudio elementの再生時刻を0.01秒毎に取得(監視)し、
     // それに合わせてフォーカスするアクセント句を変えていく
     focusInterval = setInterval(() => {
-      const currentTime = store.getters.ACTIVE_AUDIO_ELEM_CURRENT_TIME;
+      const currentTime = store.getters.AUDIO_PLAYING_TIME(blobId.value);
       for (let i = 1; i < accentPhraseOffsets.length; i++) {
         if (
           currentTime !== undefined &&
@@ -606,10 +611,11 @@ watch(nowPlaying, async (newState) => {
   } else if (focusInterval !== undefined) {
     clearInterval(focusInterval);
     focusInterval = undefined;
-    // startPointがundefinedの場合、一旦最初のアクセント句までスクロール、その後activePointの選択を解除(undefinedに)する
-    activePoint.value = startPoint.value ?? 0;
+    // selectedAccentPhraseIndex が undefined の場合、一旦最初のアクセント句までスクロール、その後activePointの選択を解除(undefinedに)する
+    activePoint.value = selectedAccentPhraseIndex.value ?? 0;
     scrollToActivePoint();
-    if (startPoint.value === undefined) activePoint.value = startPoint.value;
+    if (selectedAccentPhraseIndex.value === undefined)
+      activePoint.value = selectedAccentPhraseIndex.value;
   }
 });
 

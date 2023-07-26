@@ -17,6 +17,11 @@ import {
   audioCommandStoreState,
   getCharacterInfo,
 } from "./audio";
+import { audioPlayerStoreState, audioPlayerStore } from "./audioPlayer";
+import {
+  audioGeneratorStore,
+  audioGeneratorStoreState,
+} from "./audioGenerator";
 import { projectStoreState, projectStore } from "./project";
 import { uiStoreState, uiStore } from "./ui";
 import { settingStoreState, settingStore } from "./setting";
@@ -349,6 +354,8 @@ export const store = createStore<State, AllGetters, AllActions, AllMutations>({
   state: {
     ...uiStoreState,
     ...audioStoreState,
+    ...audioGeneratorStoreState,
+    ...audioPlayerStoreState,
     ...commandStoreState,
     ...engineStoreState,
     ...projectStoreState,
@@ -363,6 +370,8 @@ export const store = createStore<State, AllGetters, AllActions, AllMutations>({
   getters: {
     ...uiStore.getters,
     ...audioStore.getters,
+    ...audioGeneratorStore.getters,
+    ...audioPlayerStore.getters,
     ...commandStore.getters,
     ...engineStore.getters,
     ...projectStore.getters,
@@ -377,6 +386,8 @@ export const store = createStore<State, AllGetters, AllActions, AllMutations>({
   mutations: {
     ...uiStore.mutations,
     ...audioStore.mutations,
+    ...audioGeneratorStore.mutations,
+    ...audioPlayerStore.mutations,
     ...commandStore.mutations,
     ...engineStore.mutations,
     ...projectStore.mutations,
@@ -391,6 +402,8 @@ export const store = createStore<State, AllGetters, AllActions, AllMutations>({
   actions: {
     ...uiStore.actions,
     ...audioStore.actions,
+    ...audioGeneratorStore.actions,
+    ...audioPlayerStore.actions,
     ...engineStore.actions,
     ...commandStore.actions,
     ...projectStore.actions,

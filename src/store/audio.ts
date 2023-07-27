@@ -757,7 +757,7 @@ export const audioStore = createPartialStore<AudioStoreTypes>({
   },
 
   FETCH_AUDIO_QUERY: {
-    async action(
+    action(
       { dispatch },
       {
         text,
@@ -765,21 +765,22 @@ export const audioStore = createPartialStore<AudioStoreTypes>({
         styleId,
       }: { text: string; engineId: EngineId; styleId: StyleId }
     ) {
-      try {
-        const instance = await dispatch("INSTANTIATE_ENGINE_CONNECTOR", {
-          engineId,
+      return dispatch("INSTANTIATE_ENGINE_CONNECTOR", {
+        engineId,
+      })
+        .then((instance) =>
+          instance.invoke("audioQueryAudioQueryPost")({
+            text,
+            speaker: styleId,
+          })
+        )
+        .catch((error) => {
+          window.electron.logError(
+            error,
+            `Failed to fetch AudioQuery for the text "${text}".`
+          );
+          throw error;
         });
-        return await instance.invoke("audioQueryAudioQueryPost")({
-          text,
-          speaker: styleId,
-        });
-      } catch (error) {
-        window.electron.logError(
-          error,
-          `Failed to fetch AudioQuery for the text "${text}".`
-        );
-        throw error;
-      }
     },
   },
 
@@ -804,7 +805,7 @@ export const audioStore = createPartialStore<AudioStoreTypes>({
   },
 
   FETCH_ACCENT_PHRASES: {
-    async action(
+    action(
       { dispatch },
       {
         text,
@@ -818,22 +819,23 @@ export const audioStore = createPartialStore<AudioStoreTypes>({
         isKana?: boolean;
       }
     ) {
-      try {
-        const instance = await dispatch("INSTANTIATE_ENGINE_CONNECTOR", {
-          engineId,
+      return dispatch("INSTANTIATE_ENGINE_CONNECTOR", {
+        engineId,
+      })
+        .then((instance) =>
+          instance.invoke("accentPhrasesAccentPhrasesPost")({
+            text,
+            speaker: styleId,
+            isKana,
+          })
+        )
+        .catch((error) => {
+          window.electron.logError(
+            error,
+            `Failed to fetch AccentPhrases for the text "${text}".`
+          );
+          throw error;
         });
-        return await instance.invoke("accentPhrasesAccentPhrasesPost")({
-          text,
-          speaker: styleId,
-          isKana,
-        });
-      } catch (error) {
-        window.electron.logError(
-          error,
-          `Failed to fetch AccentPhrases for the text "${text}".`
-        );
-        throw error;
-      }
     },
   },
 
@@ -927,7 +929,7 @@ export const audioStore = createPartialStore<AudioStoreTypes>({
   },
 
   FETCH_MORA_DATA: {
-    async action(
+    action(
       { dispatch },
       {
         accentPhrases,
@@ -935,23 +937,24 @@ export const audioStore = createPartialStore<AudioStoreTypes>({
         styleId,
       }: { accentPhrases: AccentPhrase[]; engineId: EngineId; styleId: StyleId }
     ) {
-      try {
-        const instance = await dispatch("INSTANTIATE_ENGINE_CONNECTOR", {
-          engineId,
+      return dispatch("INSTANTIATE_ENGINE_CONNECTOR", {
+        engineId,
+      })
+        .then((instance) =>
+          instance.invoke("moraDataMoraDataPost")({
+            accentPhrase: accentPhrases,
+            speaker: styleId,
+          })
+        )
+        .catch((error) => {
+          window.electron.logError(
+            error,
+            `Failed to fetch MoraData for the accentPhrases "${JSON.stringify(
+              accentPhrases
+            )}".`
+          );
+          throw error;
         });
-        return await instance.invoke("moraDataMoraDataPost")({
-          accentPhrase: accentPhrases,
-          speaker: styleId,
-        });
-      } catch (error) {
-        window.electron.logError(
-          error,
-          `Failed to fetch MoraData for the accentPhrases "${JSON.stringify(
-            accentPhrases
-          )}".`
-        );
-        throw error;
-      }
     },
   },
 

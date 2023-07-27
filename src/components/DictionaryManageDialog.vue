@@ -439,13 +439,13 @@ const changeAccent = async (_: number, accent: number) => {
 const blobId = ref<BlobId>();
 const nowGenerating = computed(() =>
   blobId.value !== undefined
-    ? store.state.nowGeneratingBlobIds.has(blobId.value)
+    ? store.state.nowGeneratingBlobIds.includes(blobId.value)
     : false
 );
 const nowPlaying = computed(
   () =>
     blobId.value !== undefined &&
-    store.state.nowPlayingBlobIds.has(blobId.value)
+    store.state.nowPlayingBlobIds.includes(blobId.value)
 );
 
 const play = async () => {

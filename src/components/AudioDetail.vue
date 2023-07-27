@@ -524,12 +524,12 @@ const stop = () => {
 const nowPlaying = computed(
   () =>
     blobId.value !== undefined &&
-    store.state.nowPlayingBlobIds.has(blobId.value)
+    store.state.nowPlayingBlobIds.includes(blobId.value)
 );
 const nowGenerating = computed(
   () =>
     blobId.value !== undefined &&
-    store.state.nowGeneratingBlobIds.has(blobId.value)
+    store.state.nowGeneratingBlobIds.includes(blobId.value)
 );
 
 // continuously play

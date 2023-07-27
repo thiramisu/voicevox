@@ -428,7 +428,7 @@ export type AudioStoreTypes = {
  * Audio Generator Store Types
  */
 export type AudioGeneratorStoreState = {
-  nowGeneratingBlobIds: Set<BlobId>;
+  nowGeneratingBlobIds: BlobId[];
 };
 
 export type AudioGeneratorStoreTypes = {
@@ -455,7 +455,7 @@ export type AudioGeneratorStoreTypes = {
  * Audio Player Store Types
  */
 export type AudioPlayerStoreState = {
-  nowPlayingBlobIds: Set<BlobId>;
+  nowPlayingBlobIds: BlobId[];
   nowPlayingContinuouslyBlobId?: BlobId;
 };
 

@@ -80,7 +80,7 @@ export function getAudioGeneratingErrorMessage(e: unknown) {
 const audioBlobCache: Map<BlobId, Blob> = new Map();
 
 export const audioGeneratorStoreState: AudioGeneratorStoreState = {
-  nowGeneratingBlobIds: new Set(),
+  nowGeneratingBlobIds: [],
 };
 
 export const audioGeneratorStore = createPartialStore<AudioGeneratorStoreTypes>(
@@ -91,9 +91,13 @@ export const audioGeneratorStore = createPartialStore<AudioGeneratorStoreTypes>(
         { blobId, nowGenerating }: { blobId: BlobId; nowGenerating: boolean }
       ) {
         if (nowGenerating) {
-          state.nowGeneratingBlobIds.add(blobId);
+          state.nowGeneratingBlobIds.push(blobId);
         } else {
-          state.nowGeneratingBlobIds.delete(blobId);
+          if (state.nowGeneratingBlobIds.includes(blobId)) {
+            delete state.nowGeneratingBlobIds[
+              state.nowGeneratingBlobIds.indexOf(blobId)
+            ];
+          }
         }
       },
     },

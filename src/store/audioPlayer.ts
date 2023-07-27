@@ -3,7 +3,7 @@ import { AudioPlayerStoreState, AudioPlayerStoreTypes } from "./type";
 import { BlobId } from "./audioGenerator";
 
 export const audioPlayerStoreState: AudioPlayerStoreState = {
-  nowPlayingBlobIds: new Set(),
+  nowPlayingBlobIds: [],
   nowPlayingContinuouslyBlobId: undefined,
 };
 
@@ -13,7 +13,7 @@ const audioElements: Map<BlobId, HTMLAudioElement> = new Map();
 export const audioPlayerStore = createPartialStore<AudioPlayerStoreTypes>({
   AUDIO_PLAYING_TIME: {
     getter: (state) => (blobId: BlobId) =>
-      !state.nowPlayingBlobIds.has(blobId)
+      !state.nowPlayingBlobIds.includes(blobId)
         ? undefined
         : audioElements.get(blobId)?.currentTime ?? undefined,
   },
@@ -57,9 +57,13 @@ export const audioPlayerStore = createPartialStore<AudioPlayerStoreTypes>({
       { blobId, nowPlaying }: { blobId: BlobId; nowPlaying: boolean }
     ) {
       if (nowPlaying) {
-        state.nowPlayingBlobIds.add(blobId);
+        state.nowPlayingBlobIds.push(blobId);
       } else {
-        state.nowPlayingBlobIds.delete(blobId);
+        if (state.nowPlayingBlobIds.includes(blobId)) {
+          delete state.nowPlayingBlobIds[
+            state.nowPlayingBlobIds.indexOf(blobId)
+          ];
+        }
       }
     },
   },

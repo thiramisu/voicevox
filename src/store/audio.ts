@@ -702,12 +702,6 @@ export const audioStore = createPartialStore<AudioStoreTypes>({
     ) {
       state.audioItems[audioKey].query = audioQuery;
     },
-    action(
-      { commit },
-      payload: { audioKey: AudioKey; audioQuery: AudioQuery }
-    ) {
-      commit("SET_AUDIO_QUERY", payload);
-    },
   },
 
   FETCH_AUDIO_QUERY: {

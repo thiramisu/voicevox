@@ -1,7 +1,12 @@
 import semver from "semver";
 import { z } from "zod";
 import Encoding from "encoding-japanese";
-import { buildProjectFileName, getBaseName } from "./utility";
+import {
+  buildFileNameFromRawData,
+  buildProjectFileName,
+  currentDateString,
+  getBaseName,
+} from "./utility";
 import { createPartialStore } from "./vuex";
 import { Encoding as EncodingType } from "@/type/preload";
 import { createUILockAction } from "@/store/ui";
@@ -423,6 +428,36 @@ export const projectStore = createPartialStore<ProjectStoreTypes>({
         }
       }
     ),
+  },
+
+  BUILD_FILE_NAME: {
+    getter: (state, getters) => (audioKey) => {
+      const fileNamePattern = state.savingSetting.fileNamePattern;
+
+      const index = state.audioKeys.indexOf(audioKey);
+      const audioItem = state.audioItems[audioKey];
+
+      const character = getters.CHARACTER_INFO(
+        audioItem.voice.engineId,
+        audioItem.voice.styleId
+      );
+      if (character === undefined)
+        throw new Error("assert character !== undefined");
+
+      const style = character.metas.styles.find(
+        (style) => style.styleId === audioItem.voice.styleId
+      );
+      if (style === undefined) throw new Error("assert style !== undefined");
+
+      const styleName = style.styleName || "ノーマル";
+      return buildFileNameFromRawData(fileNamePattern, {
+        characterName: character.metas.speakerName,
+        index,
+        styleName,
+        text: audioItem.text,
+        date: currentDateString(),
+      });
+    },
   },
 
   SAVE_PROJECT_FILE: {

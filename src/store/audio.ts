@@ -4,7 +4,6 @@ import { createUILockAction } from "./ui";
 import {
   AudioItem,
   SaveResultObject,
-  State,
   AudioStoreState,
   AudioCommandStoreState,
   AudioStoreTypes,
@@ -12,12 +11,10 @@ import {
   transformCommandStore,
 } from "./type";
 import {
-  buildFileNameFromRawData,
   buildProjectFileName,
   convertHiraToKana,
   convertLongVowel,
   createKanaRegex,
-  currentDateString,
   extractExportText,
   extractYomiText,
 } from "./utility";
@@ -103,36 +100,6 @@ function parseTextFile(
   return audioItems;
 }
 
-// TODO: GETTERに移動する
-function buildFileName(state: State, audioKey: AudioKey) {
-  const fileNamePattern = state.savingSetting.fileNamePattern;
-
-  const index = state.audioKeys.indexOf(audioKey);
-  const audioItem = state.audioItems[audioKey];
-
-  const character = getCharacterInfo(
-    state,
-    audioItem.voice.engineId,
-    audioItem.voice.styleId
-  );
-  if (character === undefined)
-    throw new Error("assert character !== undefined");
-
-  const style = character.metas.styles.find(
-    (style) => style.styleId === audioItem.voice.styleId
-  );
-  if (style === undefined) throw new Error("assert style !== undefined");
-
-  const styleName = style.styleName || "ノーマル";
-  return buildFileNameFromRawData(fileNamePattern, {
-    characterName: character.metas.speakerName,
-    index,
-    styleName,
-    text: audioItem.text,
-    date: currentDateString(),
-  });
-}
-
 function generateWriteErrorMessage(writeFileResult: ResultError) {
   if (writeFileResult.code) {
     const code = writeFileResult.code.toUpperCase();
@@ -147,22 +114,6 @@ function generateWriteErrorMessage(writeFileResult: ResultError) {
   }
 
   return `何らかの理由で失敗しました。${writeFileResult.message}`;
-}
-
-// TODO: GETTERに移動する。buildFileNameから参照されているので、そちらも一緒に移動する。
-export function getCharacterInfo(
-  state: State,
-  engineId: EngineId,
-  styleId: StyleId
-): CharacterInfo | undefined {
-  const engineCharacterInfos = state.characterInfos[engineId];
-
-  // (engineId, styleId)で「スタイル付きキャラクター」は一意である
-  return engineCharacterInfos.find((characterInfo) =>
-    characterInfo.metas.styles.some(
-      (characterStyle) => characterStyle.styleId === styleId
-    )
-  );
 }
 
 /**
@@ -301,7 +252,14 @@ export const audioStore = createPartialStore<AudioStoreTypes>({
 
   CHARACTER_INFO: {
     getter: (state) => (engineId, styleId) => {
-      return getCharacterInfo(state, engineId, styleId);
+      const engineCharacterInfos = state.characterInfos[engineId];
+
+      // (engineId, styleId)で「スタイル付きキャラクター」は一意である
+      return engineCharacterInfos.find((characterInfo) =>
+        characterInfo.metas.styles.some(
+          (characterStyle) => characterStyle.styleId === styleId
+        )
+      );
     },
   },
 
@@ -1136,7 +1094,7 @@ export const audioStore = createPartialStore<AudioStoreTypes>({
   GENERATE_AND_SAVE_AUDIO: {
     action: createUILockAction(
       async (
-        { state, dispatch },
+        { state, dispatch, getters },
         {
           audioKey,
           filePath,
@@ -1151,12 +1109,12 @@ export const audioStore = createPartialStore<AudioStoreTypes>({
         if (state.savingSetting.fixedExportEnabled) {
           filePath = path.join(
             state.savingSetting.fixedExportDir,
-            buildFileName(state, audioKey)
+            getters.BUILD_FILE_NAME(audioKey)
           );
         } else {
           filePath ??= await window.electron.showAudioSaveDialog({
             title: "音声を保存",
-            defaultPath: buildFileName(state, audioKey),
+            defaultPath: getters.BUILD_FILE_NAME(audioKey),
           });
         }
 
@@ -1238,7 +1196,7 @@ export const audioStore = createPartialStore<AudioStoreTypes>({
   GENERATE_AND_SAVE_ALL_AUDIO: {
     action: createUILockAction(
       async (
-        { state, dispatch },
+        { state, getters, dispatch },
         {
           dirPath,
           encoding,
@@ -1263,7 +1221,7 @@ export const audioStore = createPartialStore<AudioStoreTypes>({
           let finishedCount = 0;
 
           const promises = state.audioKeys.map((audioKey) => {
-            const name = buildFileName(state, audioKey);
+            const name = getters.BUILD_FILE_NAME(audioKey);
             return dispatch("GENERATE_AND_SAVE_AUDIO", {
               audioKey,
               filePath: path.join(_dirPath, name),

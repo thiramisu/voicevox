@@ -15,7 +15,6 @@ import {
   audioStore,
   audioCommandStore,
   audioCommandStoreState,
-  getCharacterInfo,
 } from "./audio";
 import { audioPlayerStoreState, audioPlayerStore } from "./audioPlayer";
 import {
@@ -234,23 +233,16 @@ export const indexStore = createPartialStore<IndexStoreTypes>({
   },
 
   SET_DEFAULT_STYLE_IDS: {
-    mutation(state, { defaultStyleIds }) {
+    mutation(state, { defaultStyleIds, characterInfo }) {
       state.defaultStyleIds = defaultStyleIds;
 
       // 初期状態（空のAudioCellが１つだけ）だった場合は、スタイルを変更する
       // FIXME: デフォルトスタイル選択前にAudioCellを生成しないようにする
       if (state.audioKeys.length === 1) {
+        if (characterInfo === undefined)
+          throw new Error("assert characterInfo !== undefined");
         const audioItem = state.audioItems[state.audioKeys[0]];
         if (audioItem.text === "") {
-          const characterInfo = getCharacterInfo(
-            state,
-            audioItem.voice.engineId,
-            audioItem.voice.styleId
-          );
-
-          if (characterInfo === undefined)
-            throw new Error("assert characterInfo !== undefined");
-
           const speakerUuid = characterInfo.metas.speakerUuid;
           const defaultStyleId = defaultStyleIds.find(
             (styleId) => speakerUuid == styleId.speakerUuid
@@ -266,8 +258,14 @@ export const indexStore = createPartialStore<IndexStoreTypes>({
         }
       }
     },
-    async action({ commit }, defaultStyleIds) {
-      commit("SET_DEFAULT_STYLE_IDS", { defaultStyleIds });
+    async action({ state, getters, commit }, defaultStyleIds) {
+      const audioItem = state.audioItems[state.audioKeys[0]];
+      const characterInfo = getters.CHARACTER_INFO(
+        audioItem.voice.engineId,
+        audioItem.voice.styleId
+      );
+
+      commit("SET_DEFAULT_STYLE_IDS", { defaultStyleIds, characterInfo });
       await window.electron.setSetting("defaultStyleIds", defaultStyleIds);
     },
   },

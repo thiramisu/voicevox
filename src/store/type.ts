@@ -167,10 +167,6 @@ export type AudioStoreTypes = {
     };
   };
 
-  GENERATE_AUDIO_KEY: {
-    action(): AudioKey;
-  };
-
   SETUP_SPEAKER: {
     action(payload: {
       audioKey: AudioKey;
@@ -181,6 +177,10 @@ export type AudioStoreTypes = {
 
   SET_AUDIO_KEY_INITIALIZING_SPEAKER: {
     mutation: { audioKey?: AudioKey };
+  };
+
+  GENERATE_AUDIO_KEY: {
+    action(): AudioKey;
   };
 
   SET_ACTIVE_AUDIO_KEY: {
@@ -932,7 +932,10 @@ export type IndexStoreTypes = {
   };
 
   SET_DEFAULT_STYLE_IDS: {
-    mutation: { defaultStyleIds: DefaultStyleId[] };
+    mutation: {
+      defaultStyleIds: DefaultStyleId[];
+      characterInfo?: CharacterInfo;
+    };
     action(payload: DefaultStyleId[]): void;
   };
 
@@ -995,6 +998,10 @@ export type ProjectStoreTypes = {
 
   LOAD_PROJECT_FILE: {
     action(payload: { filePath?: string; confirm?: boolean }): boolean;
+  };
+
+  BUILD_FILE_NAME: {
+    getter: (audioKey: AudioKey) => string;
   };
 
   SAVE_PROJECT_FILE: {

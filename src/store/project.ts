@@ -1,7 +1,9 @@
 import semver from "semver";
 import { z } from "zod";
+import Encoding from "encoding-japanese";
 import { buildProjectFileName, getBaseName } from "./utility";
 import { createPartialStore } from "./vuex";
+import { Encoding as EncodingType } from "@/type/preload";
 import { createUILockAction } from "@/store/ui";
 import { AudioItem, ProjectStoreState, ProjectStoreTypes } from "@/store/type";
 
@@ -21,6 +23,50 @@ const DEFAULT_SAMPLING_RATE = 24000;
 export const projectStoreState: ProjectStoreState = {
   savedLastCommandUnixMillisec: null,
 };
+
+export async function getNonExistentFileName(filePath: string) {
+  const extension = filePath.slice(filePath.lastIndexOf(".") + 1);
+  let tail = 1;
+  const name = filePath.slice(0, filePath.length - 1 - extension.length);
+  while (await window.electron.checkFileExists(filePath)) {
+    filePath = `${name}[${tail.toString()}].${extension}`;
+    tail += 1;
+  }
+  return filePath;
+}
+
+export async function writeTextFile(obj: {
+  filePath: string;
+  text: string;
+  encoding?: EncodingType;
+}) {
+  obj.encoding ??= "UTF-8";
+
+  const textBlob = (
+    {
+      "UTF-8": (text) => {
+        const bom = new Uint8Array([0xef, 0xbb, 0xbf]);
+        return new Blob([bom, text], {
+          type: "text/plain;charset=UTF-8",
+        });
+      },
+      Shift_JIS: (text) => {
+        const sjisArray = Encoding.convert(Encoding.stringToCode(text), {
+          to: "SJIS",
+          type: "arraybuffer",
+        });
+        return new Blob([new Uint8Array(sjisArray)], {
+          type: "text/plain;charset=Shift_JIS",
+        });
+      },
+    } as Record<EncodingType, (text: string) => Blob>
+  )[obj.encoding](obj.text);
+
+  return window.electron.writeFile({
+    filePath: obj.filePath,
+    buffer: await textBlob.arrayBuffer(),
+  });
+}
 
 export const projectStore = createPartialStore<ProjectStoreTypes>({
   PROJECT_NAME: {

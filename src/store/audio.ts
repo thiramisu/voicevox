@@ -1,6 +1,5 @@
 import path from "path";
 import { v4 as uuidv4 } from "uuid";
-import Encoding from "encoding-japanese";
 import { createUILockAction } from "./ui";
 import {
   AudioItem,
@@ -19,12 +18,12 @@ import {
   convertLongVowel,
   createKanaRegex,
   currentDateString,
-  skipMemoText,
-  skipReadingPart,
-  skipWritingPart,
+  extractExportText,
+  extractYomiText,
 } from "./utility";
 import { createPartialStore } from "./vuex";
 import { determineNextPresetKey } from "./preset";
+import { getNonExistentFileName, writeTextFile } from "./project";
 import {
   BlobId,
   generateLabFromAudioQuery,
@@ -1178,12 +1177,7 @@ export const audioStore = createPartialStore<AudioStoreTypes>({
         }
 
         if (state.savingSetting.avoidOverwrite) {
-          let tail = 1;
-          const name = filePath.slice(0, filePath.length - 4);
-          while (await dispatch("CHECK_FILE_EXISTS", { file: filePath })) {
-            filePath = name + "[" + tail.toString() + "]" + ".wav";
-            tail += 1;
-          }
+          filePath = await getNonExistentFileName(filePath);
         }
 
         let blob;
@@ -1218,42 +1212,18 @@ export const audioStore = createPartialStore<AudioStoreTypes>({
                 errorMessage: "labの生成に失敗しました。",
               };
 
-            const bom = new Uint8Array([0xef, 0xbb, 0xbf]);
-            const labBlob = new Blob([bom, labString], {
-              type: "text/plain;charset=UTF-8",
-            });
-
-            await window.electron
-              .writeFile({
-                filePath: filePath.replace(/\.wav$/, ".lab"),
-                buffer: await labBlob.arrayBuffer(),
-              })
-              .then(getValueOrThrow);
+            await writeTextFile({
+              text: labString,
+              filePath: filePath.replace(/\.wav$/, ".lab"),
+            }).then(getValueOrThrow);
           }
 
           if (state.savingSetting.exportText) {
-            const textBlob = ((): Blob => {
-              if (!encoding || encoding === "UTF-8") {
-                const bom = new Uint8Array([0xef, 0xbb, 0xbf]);
-                return new Blob([bom, state.audioItems[audioKey].text], {
-                  type: "text/plain;charset=UTF-8",
-                });
-              }
-              const sjisArray = Encoding.convert(
-                Encoding.stringToCode(state.audioItems[audioKey].text),
-                { to: "SJIS", type: "arraybuffer" }
-              );
-              return new Blob([new Uint8Array(sjisArray)], {
-                type: "text/plain;charset=Shift_JIS",
-              });
-            })();
-
-            await window.electron
-              .writeFile({
-                filePath: filePath.replace(/\.wav$/, ".txt"),
-                buffer: await textBlob.arrayBuffer(),
-              })
-              .then(getValueOrThrow);
+            await writeTextFile({
+              text: extractExportText(state.audioItems[audioKey].text),
+              filePath: filePath.replace(/\.wav$/, ".txt"),
+              encoding,
+            }).then(getValueOrThrow);
           }
 
           return { result: "SUCCESS", path: filePath };
@@ -1355,12 +1325,7 @@ export const audioStore = createPartialStore<AudioStoreTypes>({
         }
 
         if (state.savingSetting.avoidOverwrite) {
-          let tail = 1;
-          const name = filePath.slice(0, filePath.length - 4);
-          while (await dispatch("CHECK_FILE_EXISTS", { file: filePath })) {
-            filePath = name + "[" + tail.toString() + "]" + ".wav";
-            tail += 1;
-          }
+          filePath = await getNonExistentFileName(filePath);
         }
 
         const encodedBlobs: string[] = [];
@@ -1420,7 +1385,7 @@ export const audioStore = createPartialStore<AudioStoreTypes>({
             return { result: "WRITE_ERROR", path: filePath };
           }
           labs.push(lab);
-          texts.push(state.audioItems[audioKey].text);
+          texts.push(extractExportText(state.audioItems[audioKey].text));
           // 最終音素の終了時刻を取得する
           const splitLab = lab.split(" ");
           labOffset = Number(splitLab[splitLab.length - 2]);
@@ -1443,55 +1408,27 @@ export const audioStore = createPartialStore<AudioStoreTypes>({
         }
 
         if (state.savingSetting.exportLab) {
-          // GENERATE_LABで生成される文字列はすべて改行で終わるので、改行なしに結合する
-          const labString = labs.join("");
-
-          const bom = new Uint8Array([0xef, 0xbb, 0xbf]);
-          const labBlob = new Blob([bom, labString], {
-            type: "text/plain;charset=UTF-8",
+          await writeTextFile({
+            // GENERATE_LABで生成される文字列はすべて改行で終わるので、改行なしに結合する
+            text: labs.join(""),
+            filePath: filePath.replace(/\.wav$/, ".lab"),
+          }).then((result) => {
+            if (result.ok) return;
+            window.electron.logError(result.error);
+            return { result: "WRITE_ERROR", path: filePath };
           });
-
-          await window.electron
-            .writeFile({
-              filePath: filePath.replace(/\.wav$/, ".lab"),
-              buffer: await labBlob.arrayBuffer(),
-            })
-            .then((result) => {
-              if (result.ok) return;
-              window.electron.logError(result.error);
-              return { result: "WRITE_ERROR", path: filePath };
-            });
         }
 
         if (state.savingSetting.exportText) {
-          const textBlob = ((): Blob => {
-            const text = texts.join("\n");
-            const skippedText = skipReadingPart(skipMemoText(text));
-            if (!encoding || encoding === "UTF-8") {
-              const bom = new Uint8Array([0xef, 0xbb, 0xbf]);
-              return new Blob([bom, skippedText], {
-                type: "text/plain;charset=UTF-8",
-              });
-            }
-            const sjisArray = Encoding.convert(Encoding.stringToCode(text), {
-              to: "SJIS",
-              type: "arraybuffer",
-            });
-            return new Blob([new Uint8Array(sjisArray)], {
-              type: "text/plain;charset=Shift_JIS",
-            });
-          })();
-
-          await window.electron
-            .writeFile({
-              filePath: filePath.replace(/\.wav$/, ".txt"),
-              buffer: await textBlob.arrayBuffer(),
-            })
-            .then((result) => {
-              if (result.ok) return;
-              window.electron.logError(result.error);
-              return { result: "WRITE_ERROR", path: filePath };
-            });
+          await writeTextFile({
+            text: texts.join("\n"),
+            filePath: filePath.replace(/\.wav$/, ".txt"),
+            encoding,
+          }).then((result) => {
+            if (result.ok) return;
+            window.electron.logError(result.error);
+            return { result: "WRITE_ERROR", path: filePath };
+          });
         }
 
         return { result: "SUCCESS", path: filePath };
@@ -1502,7 +1439,7 @@ export const audioStore = createPartialStore<AudioStoreTypes>({
   CONNECT_AND_EXPORT_TEXT: {
     action: createUILockAction(
       async (
-        { state, dispatch, getters },
+        { state, getters },
         { filePath, encoding }: { filePath?: string; encoding?: EncodingType }
       ): Promise<SaveResultObject> => {
         const defaultFileName = buildProjectFileName(state, "txt");
@@ -1523,12 +1460,7 @@ export const audioStore = createPartialStore<AudioStoreTypes>({
         }
 
         if (state.savingSetting.avoidOverwrite) {
-          let tail = 1;
-          const name = filePath.slice(0, filePath.length - 4);
-          while (await dispatch("CHECK_FILE_EXISTS", { file: filePath })) {
-            filePath = name + "[" + tail.toString() + "]" + ".wav";
-            tail += 1;
-          }
+          filePath = await getNonExistentFileName(filePath);
         }
 
         const characters = new Map<string, string>();
@@ -1559,39 +1491,20 @@ export const audioStore = createPartialStore<AudioStoreTypes>({
               ? characters.get(`${engineId}:${styleId}`) + ","
               : "";
 
-          const skippedText = skipReadingPart(
-            skipMemoText(state.audioItems[audioKey].text)
+          texts.push(
+            speakerName + extractExportText(state.audioItems[audioKey].text)
           );
-          texts.push(speakerName + skippedText);
         }
 
-        const textBlob = ((): Blob => {
-          const text = texts.join("\n");
-          if (!encoding || encoding === "UTF-8") {
-            const bom = new Uint8Array([0xef, 0xbb, 0xbf]);
-            return new Blob([bom, text], {
-              type: "text/plain;charset=UTF-8",
-            });
-          }
-          const sjisArray = Encoding.convert(Encoding.stringToCode(text), {
-            to: "SJIS",
-            type: "arraybuffer",
-          });
-          return new Blob([new Uint8Array(sjisArray)], {
-            type: "text/plain;charset=Shift_JIS",
-          });
-        })();
-
-        await window.electron
-          .writeFile({
-            filePath,
-            buffer: await textBlob.arrayBuffer(),
-          })
-          .then((result) => {
-            if (result.ok) return;
-            window.electron.logError(result.error);
-            return { result: "WRITE_ERROR", path: filePath };
-          });
+        await writeTextFile({
+          text: texts.join("\n"),
+          encoding,
+          filePath,
+        }).then((result) => {
+          if (result.ok) return;
+          window.electron.logError(result.error);
+          return { result: "WRITE_ERROR", path: filePath };
+        });
 
         return { result: "SUCCESS", path: filePath };
       }
@@ -1611,12 +1524,6 @@ export const audioStore = createPartialStore<AudioStoreTypes>({
       } else {
         state.audioItems[audioKey].presetKey = presetKey;
       }
-    },
-  },
-
-  CHECK_FILE_EXISTS: {
-    action(_, { file }: { file: string }) {
-      return window.electron.checkFileExists(file);
     },
   },
 });
@@ -1709,7 +1616,7 @@ export const audioCommandStore = transformCommandStore(
         const engineId = state.audioItems[audioKey].voice.engineId;
         const styleId = state.audioItems[audioKey].voice.styleId;
         const query = state.audioItems[audioKey].query;
-        const skippedText = skipWritingPart(skipMemoText(text));
+        const skippedText = extractYomiText(text);
 
         try {
           if (query !== undefined) {

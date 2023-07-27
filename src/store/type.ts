@@ -422,10 +422,6 @@ export type AudioStoreTypes = {
       presetKey: PresetKey | undefined;
     };
   };
-
-  CHECK_FILE_EXISTS: {
-    action(payload: { file: string }): Promise<boolean>;
-  };
 };
 
 /*

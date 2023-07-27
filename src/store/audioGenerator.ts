@@ -24,7 +24,7 @@ export async function generateLabFromAudioQuery({
   const speedScale = query.speedScale;
 
   let labString = "";
-  let timestamp = offset !== undefined ? offset : 0;
+  let timestamp = offset ?? 0;
 
   labString += timestamp.toFixed() + " ";
   timestamp += (query.prePhonemeLength * 10000000) / speedScale;

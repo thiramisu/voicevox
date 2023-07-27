@@ -3,9 +3,9 @@ import { Platform } from "quasar";
 import { State } from "@/store/type";
 import { ToolbarButtonTagType, isMac } from "@/type/preload";
 
-export const generateUniqueId = async <T extends string>(datas: unknown) => {
-  const data = new TextEncoder().encode(JSON.stringify(datas));
-  const digest = await crypto.subtle.digest("SHA-256", data);
+export const generateUniqueId = async <T extends string>(data: unknown) => {
+  const _data = new TextEncoder().encode(JSON.stringify(data));
+  const digest = await crypto.subtle.digest("SHA-256", _data);
   const id = Array.from(new Uint8Array(digest))
     .map((v) => v.toString(16).padStart(2, "0"))
     .join("");
@@ -101,16 +101,21 @@ function replaceTag(
   return result;
 }
 
-export function skipReadingPart(text: string): string {
+export function extractExportText(text: string): string {
+  return skipReadingPart(skipMemoText(text));
+}
+export function extractYomiText(text: string): string {
+  return skipWritingPart(skipMemoText(text));
+}
+function skipReadingPart(text: string): string {
   // テキスト内の全ての{漢字|かんじ}パターンを探し、漢字部分だけを残す
   return text.replace(/\{([^|]*)\|([^}]*)\}/g, "$1");
 }
-
-export function skipWritingPart(text: string): string {
+function skipWritingPart(text: string): string {
   // テキスト内の全ての{漢字|かんじ}パターンを探し、かんじ部分だけを残す
   return text.replace(/\{([^|]*)\|([^}]*)\}/g, "$2");
 }
-export function skipMemoText(targettext: string): string {
+function skipMemoText(targettext: string): string {
   // []をスキップ
   const resolvedText = targettext.replace(/\[.*?\]/g, "");
   return resolvedText;

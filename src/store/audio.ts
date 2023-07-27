@@ -1466,8 +1466,9 @@ export const audioStore = createPartialStore<AudioStoreTypes>({
 
         const texts: string[] = [];
         for (const audioKey of state.audioKeys) {
-          const styleId = state.audioItems[audioKey].voice.styleId;
-          const engineId = state.audioItems[audioKey].voice.engineId;
+          const audioItem = state.audioItems[audioKey];
+          const styleId = audioItem.voice.styleId;
+          const engineId = audioItem.voice.engineId;
           if (!engineId) {
             throw new Error("engineId is undefined");
           }
@@ -1476,9 +1477,7 @@ export const audioStore = createPartialStore<AudioStoreTypes>({
               ? characters.get(`${engineId}:${styleId}`) + ","
               : "";
 
-          texts.push(
-            speakerName + extractExportText(state.audioItems[audioKey].text)
-          );
+          texts.push(speakerName + extractExportText(audioItem.text));
         }
 
         await writeTextFile({

@@ -437,10 +437,10 @@ const changeAccent = async (_: number, accent: number) => {
 };
 
 const blobId = ref<BlobId>();
-const nowGenerating = computed(() =>
-  blobId.value !== undefined
-    ? store.state.nowGeneratingBlobIds.includes(blobId.value)
-    : false
+const nowGenerating = computed(
+  () =>
+    blobId.value !== undefined &&
+    store.state.nowGeneratingBlobIds.includes(blobId.value)
 );
 const nowPlaying = computed(
   () =>

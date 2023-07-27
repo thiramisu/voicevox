@@ -1071,19 +1071,6 @@ export const audioStore = createPartialStore<AudioStoreTypes>({
     ),
   },
 
-  GENERATE_LAB: {
-    action: createUILockAction(
-      async (
-        { state },
-        { audioKey, offset }: { audioKey: AudioKey; offset?: number }
-      ) => {
-        const query = state.audioItems[audioKey].query;
-        if (query === undefined) return;
-        return generateLabFromAudioQuery({ query, offset });
-      }
-    ),
-  },
-
   PLAY_AUDIO_CONTINUOUSLY_FROM_AUDIO_KEY: {
     async action({ commit, dispatch, state }, { audioKey }) {
       const currentAudioKey = audioKey ?? state._activeAudioKey;
@@ -1160,6 +1147,7 @@ export const audioStore = createPartialStore<AudioStoreTypes>({
           encoding?: EncodingType;
         }
       ): Promise<SaveResultObject> => {
+        const audioItem = state.audioItems[audioKey];
         if (state.savingSetting.fixedExportEnabled) {
           filePath = path.join(
             state.savingSetting.fixedExportDir,
@@ -1182,11 +1170,8 @@ export const audioStore = createPartialStore<AudioStoreTypes>({
 
         let blob;
         try {
-          blob = (
-            await dispatch("FETCH_ID_AUDIO_BLOB_PAIR", {
-              audioItem: state.audioItems[audioKey],
-            })
-          ).blob;
+          blob = (await dispatch("FETCH_ID_AUDIO_BLOB_PAIR", { audioItem }))
+            .blob;
         } catch (e) {
           return {
             result: "ENGINE_ERROR",
@@ -1204,14 +1189,16 @@ export const audioStore = createPartialStore<AudioStoreTypes>({
             .then(getValueOrThrow);
 
           if (state.savingSetting.exportLab) {
-            const labString = await dispatch("GENERATE_LAB", { audioKey });
-            if (labString === undefined)
+            if (audioItem.query === undefined)
               return {
                 result: "WRITE_ERROR",
                 path: filePath,
                 errorMessage: "labの生成に失敗しました。",
               };
 
+            const labString = await generateLabFromAudioQuery({
+              query: audioItem.query,
+            });
             await writeTextFile({
               text: labString,
               filePath: filePath.replace(/\.wav$/, ".lab"),
@@ -1220,7 +1207,7 @@ export const audioStore = createPartialStore<AudioStoreTypes>({
 
           if (state.savingSetting.exportText) {
             await writeTextFile({
-              text: extractExportText(state.audioItems[audioKey].text),
+              text: extractExportText(audioItem.text),
               filePath: filePath.replace(/\.wav$/, ".txt"),
               encoding,
             }).then(getValueOrThrow);
@@ -1355,13 +1342,11 @@ export const audioStore = createPartialStore<AudioStoreTypes>({
         let finishedCount = 0;
 
         for (const audioKey of state.audioKeys) {
+          const audioItem = state.audioItems[audioKey];
           let blob;
           try {
-            blob = (
-              await dispatch("FETCH_ID_AUDIO_BLOB_PAIR", {
-                audioItem: state.audioItems[audioKey],
-              })
-            ).blob;
+            blob = (await dispatch("FETCH_ID_AUDIO_BLOB_PAIR", { audioItem }))
+              .blob;
           } catch (e) {
             return {
               result: "ENGINE_ERROR",
@@ -1377,18 +1362,18 @@ export const audioStore = createPartialStore<AudioStoreTypes>({
           }
           encodedBlobs.push(encodedBlob);
           // 大して処理能力を要しないので、生成設定のon/offにかかわらず生成してしまう
-          const lab = await dispatch("GENERATE_LAB", {
-            audioKey,
-            offset: labOffset,
-          });
-          if (lab === undefined) {
+          if (audioItem.query === undefined) {
             return { result: "WRITE_ERROR", path: filePath };
           }
+          const lab = await generateLabFromAudioQuery({
+            query: audioItem.query,
+            offset: labOffset,
+          });
           labs.push(lab);
-          texts.push(extractExportText(state.audioItems[audioKey].text));
           // 最終音素の終了時刻を取得する
           const splitLab = lab.split(" ");
           labOffset = Number(splitLab[splitLab.length - 2]);
+          texts.push(extractExportText(audioItem.text));
         }
 
         const connectedWav = await dispatch("CONNECT_AUDIO", {

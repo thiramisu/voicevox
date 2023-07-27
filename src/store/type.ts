@@ -366,13 +366,6 @@ export type AudioStoreTypes = {
     action(payload: { audioKey: AudioKey }): Promise<BlobId>;
   };
 
-  GENERATE_LAB: {
-    action(payload: {
-      audioKey: AudioKey;
-      offset?: number;
-    }): string | undefined;
-  };
-
   PLAY_AUDIO_CONTINUOUSLY_FROM_AUDIO_KEY: {
     action(payload: { audioKey?: AudioKey }): void;
   };

@@ -210,14 +210,11 @@ describe("store/vuex.js test", () => {
     assert.isArray(store.state.audioKeys);
     assert.isEmpty(store.state.audioKeys);
     assert.equal(store.state.selectedAccentPhraseIndex, 0);
-    assert.isObject(store.state.audioKey2BlobIds);
-    assert.isEmpty(store.state.audioKey2BlobIds);
-    assert.isObject(store.state.nowPlayingBlobIds);
-    assert.isEmpty(store.state.nowPlayingBlobIds);
-    assert.isObject(store.state.nowGeneratingBlobIds);
-    assert.isEmpty(store.state.nowGeneratingBlobIds);
+    assert.isObject(store.state.audioKey2BlobId);
+    assert.isEmpty(store.state.audioKey2BlobId);
+    assert.isArray(store.state.nowPlayingBlobIds);
+    assert.isArray(store.state.nowGeneratingBlobIds);
     assert.equal(store.state.uiLockCount, 0);
-    assert.equal(store.state.nowPlayingContinuously, false);
     assert.isArray(store.state.undoCommands);
     assert.isEmpty(store.state.undoCommands);
     assert.isArray(store.state.redoCommands);

@@ -41,10 +41,12 @@ export const audioPlayerStore = createPartialStore<AudioPlayerStoreTypes>({
 
   UNLOAD_AUDIO_BLOB: {
     action({ dispatch }, { blobId }: { blobId?: BlobId }) {
-      if (blobId === undefined || !audioElements.has(blobId)) {
+      let audioElement;
+      if (blobId === undefined || !(audioElement = audioElements.get(blobId))) {
         return;
       }
       dispatch("STOP_AUDIO_BLOB", { blobId });
+      audioElement.src = "";
       audioElements.delete(blobId);
     },
   },

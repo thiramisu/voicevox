@@ -1,5 +1,6 @@
 /**
- * audio系データの生成とキャッシュの管理を行う
+ * AudioItem のデータを他のデータに変換する。
+ * また、それに必要なキャッシュの管理も行う。
  */
 import { BRAND } from "zod";
 import { createPartialStore } from "./vuex";

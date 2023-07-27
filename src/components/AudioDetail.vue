@@ -401,7 +401,7 @@ const selectedAccentPhraseIndex = computed({
     return store.state.selectedAccentPhraseIndex;
   },
   set: (index) => {
-    store.dispatch("SET_SELECTED_ACCENT_PHRASE_INDEX", { index });
+    store.commit("SET_SELECTED_ACCENT_PHRASE_INDEX", { index });
   },
 });
 // アクティブ(再生されている状態)なアクセント句

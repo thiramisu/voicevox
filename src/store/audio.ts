@@ -388,19 +388,15 @@ export const audioStore = createPartialStore<AudioStoreTypes>({
     mutation(state, { audioKey }: { audioKey?: AudioKey }) {
       state._activeAudioKey = audioKey;
     },
-    action({ commit, dispatch }, { audioKey }: { audioKey?: AudioKey }) {
+    action({ commit }, { audioKey }: { audioKey?: AudioKey }) {
       commit("SET_ACTIVE_AUDIO_KEY", { audioKey });
-      // reset audio play start point
-      dispatch("SET_SELECTED_ACCENT_PHRASE_INDEX", { index: undefined });
+      commit("SET_SELECTED_ACCENT_PHRASE_INDEX", { index: undefined });
     },
   },
 
   SET_SELECTED_ACCENT_PHRASE_INDEX: {
     mutation(state, { index }: { index?: number }) {
       state.selectedAccentPhraseIndex = index;
-    },
-    action({ commit }, { index }: { index?: number }) {
-      commit("SET_SELECTED_ACCENT_PHRASE_INDEX", { index });
     },
   },
 
@@ -1043,7 +1039,7 @@ export const audioStore = createPartialStore<AudioStoreTypes>({
         blobIds: (async function* (): AsyncGenerator<BlobId> {
           for (let i = index; i < state.audioKeys.length; ++i) {
             const audioKey = state.audioKeys[i];
-            commit("SET_ACTIVE_AUDIO_KEY", { audioKey });
+            dispatch("SET_ACTIVE_AUDIO_KEY", { audioKey });
             yield await dispatch("FETCH_AUDIO", { audioKey });
           }
           commit("SET_ACTIVE_AUDIO_KEY", { audioKey: currentAudioKey });

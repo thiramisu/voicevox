@@ -190,7 +190,6 @@ export type AudioStoreTypes = {
 
   SET_SELECTED_ACCENT_PHRASE_INDEX: {
     mutation: { index?: number };
-    action(payload: { index?: number }): void;
   };
 
   GENERATE_AUDIO_ITEM: {
@@ -282,7 +281,6 @@ export type AudioStoreTypes = {
 
   SET_AUDIO_QUERY: {
     mutation: { audioKey: AudioKey; audioQuery: AudioQuery };
-    action(payload: { audioKey: AudioKey; audioQuery: AudioQuery }): void;
   };
 
   FETCH_AUDIO_QUERY: {

@@ -239,10 +239,10 @@ export const indexStore = createPartialStore<IndexStoreTypes>({
       // 初期状態（空のAudioCellが１つだけ）だった場合は、スタイルを変更する
       // FIXME: デフォルトスタイル選択前にAudioCellを生成しないようにする
       if (state.audioKeys.length === 1) {
-        if (characterInfo === undefined)
-          throw new Error("assert characterInfo !== undefined");
         const audioItem = state.audioItems[state.audioKeys[0]];
         if (audioItem.text === "") {
+          if (characterInfo === undefined)
+            throw new Error("assert characterInfo !== undefined");
           const speakerUuid = characterInfo.metas.speakerUuid;
           const defaultStyleId = defaultStyleIds.find(
             (styleId) => speakerUuid == styleId.speakerUuid

@@ -147,23 +147,16 @@ export interface Sandbox {
   getContactText(): Promise<string>;
   getPrivacyPolicyText(): Promise<string>;
   getAltPortInfos(): Promise<AltPortInfos>;
-  showAudioSaveDialog(obj: {
+  showSaveDialog(obj: {
     title: string;
     defaultPath?: string;
-  }): Promise<string | undefined>;
-  showTextSaveDialog(obj: {
-    title: string;
-    defaultPath?: string;
+    mediaType: SaveMediaType;
   }): Promise<string | undefined>;
   showVvppOpenDialog(obj: {
     title: string;
     defaultPath?: string;
   }): Promise<string | undefined>;
   showOpenDirectoryDialog(obj: { title: string }): Promise<string | undefined>;
-  showProjectSaveDialog(obj: {
-    title: string;
-    defaultPath?: string;
-  }): Promise<string | undefined>;
   showProjectLoadDialog(obj: { title: string }): Promise<string[] | undefined>;
   showMessageDialog(obj: {
     type: "none" | "info" | "error" | "question" | "warning";
@@ -614,6 +607,13 @@ export class SystemError extends Error {
     }
   }
 }
+
+export type SaveMediaType = "project" | "audio" | "text";
+export const mediaTypeNames: Record<SaveMediaType, string> = {
+  project: "プロジェクト",
+  audio: "音声",
+  text: "テキスト",
+} as const;
 
 export type EngineDirValidationResult =
   | "ok"

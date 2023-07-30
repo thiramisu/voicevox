@@ -1,46 +1,57 @@
 import { QVueGlobals } from "quasar";
-import { AudioKey, Encoding as EncodingType } from "@/type/preload";
+import { AudioKey, SaveMediaType, mediaTypeNames } from "@/type/preload";
 import {
+  AllGetters,
   AllActions,
   SaveResultObject,
   SaveResult,
   ErrorTypeForSaveAllResultDialog,
+  FilePath,
+  DirPath,
+  FileName,
 } from "@/store/type";
 import SaveAllResultDialog from "@/components/SaveAllResultDialog.vue";
 import { Dispatch } from "@/store/vuex";
 import { withProgress } from "@/store/ui";
+import { Result, failure, success } from "@/type/result";
 
 type QuasarDialog = QVueGlobals["dialog"];
 type QuasarNotify = QVueGlobals["notify"];
-type MediaType = "audio" | "text";
 
 export async function generateAndSaveOneAudioWithDialog({
   audioKey,
   quasarDialog,
   quasarNotify,
   dispatch,
-  filePath,
-  encoding,
+  getters,
   disableNotifyOnGenerate,
 }: {
   audioKey: AudioKey;
   quasarDialog: QuasarDialog;
   quasarNotify: QuasarNotify;
   dispatch: Dispatch<AllActions>;
-  filePath?: string;
-  encoding?: EncodingType;
+  getters: AllGetters;
   disableNotifyOnGenerate: boolean;
 }): Promise<void> {
-  const result: SaveResultObject = await withProgress(
+  const defaultName = getters.DEFAULT_AUDIO_FILE_NAME(audioKey);
+  let filePath = await getters.FIXED_FILE_PATH(defaultName);
+  if (!filePath) {
+    const filePathResult = await getFilePathWithDialog({
+      defaultName,
+      mediaType: "audio",
+      title: "音声を保存",
+    });
+    if (!filePathResult.ok) return;
+    filePath = filePathResult.value;
+  }
+
+  const result = await withProgress(
     dispatch("GENERATE_AND_SAVE_AUDIO", {
       audioKey,
       filePath,
-      encoding,
     }),
     dispatch
   );
-
-  if (result.result === "CANCELED") return;
 
   if (result.result === "SUCCESS") {
     if (disableNotifyOnGenerate) return;
@@ -60,66 +71,68 @@ export async function generateAndSaveAllAudioWithDialog({
   quasarNotify,
   dispatch,
   dirPath,
-  encoding,
   disableNotifyOnGenerate,
 }: {
   quasarDialog: QuasarDialog;
   quasarNotify: QuasarNotify;
   dispatch: Dispatch<AllActions>;
-  dirPath?: string;
-  encoding?: EncodingType;
+  dirPath?: DirPath;
   disableNotifyOnGenerate: boolean;
 }): Promise<void> {
+  if (!dirPath) {
+    const dirResult = await getDirPathWithDialog({
+      title: "音声を全て保存",
+    });
+    if (!dirResult.ok) return;
+    dirPath = dirResult.value;
+  }
+
   const result = await withProgress(
     dispatch("GENERATE_AND_SAVE_ALL_AUDIO", {
       dirPath,
-      encoding,
       callback: (finishedCount, totalCount) =>
         dispatch("SET_PROGRESS_FROM_COUNT", { finishedCount, totalCount }),
     }),
     dispatch
   );
 
-  if (result === undefined) return;
-
   // 書き出し成功時の出力先パスを配列に格納
-  const successArray: Array<string | undefined> = result.flatMap((result) =>
+  const successArray = result.flatMap((result) =>
     result.result === "SUCCESS" ? result.path : []
   );
 
-  // 書き込みエラーを配列に格納
-  const writeErrorArray: Array<ErrorTypeForSaveAllResultDialog> =
-    result.flatMap((result) =>
-      result.result === "WRITE_ERROR"
-        ? { path: result.path ?? "", message: result.errorMessage ?? "" }
-        : []
-    );
-
-  // エンジンエラーを配列に格納
-  const engineErrorArray: Array<ErrorTypeForSaveAllResultDialog> =
-    result.flatMap((result) =>
-      result.result === "ENGINE_ERROR"
-        ? { path: result.path ?? "", message: result.errorMessage ?? "" }
-        : []
-    );
-
   if (successArray.length === result.length) {
-    if (disableNotifyOnGenerate) return;
-    // 書き出し成功時に通知をする
-    showNotify({
-      mediaType: "audio",
-      quasarNotify,
-      dispatch,
-    });
-  }
+    if (!disableNotifyOnGenerate) {
+      // 書き出し成功時に通知をする
+      showNotify({
+        mediaType: "audio",
+        quasarNotify,
+        dispatch,
+      });
+    }
+  } else {
+    // 書き込みエラーを配列に格納
+    const writeErrorArray: Array<ErrorTypeForSaveAllResultDialog> =
+      result.flatMap((result) =>
+        result.result === "WRITE_ERROR"
+          ? { path: result.path ?? "", message: result.errorMessage ?? "" }
+          : []
+      );
 
-  if (writeErrorArray.length > 0 || engineErrorArray.length > 0) {
+    // エンジンエラーを配列に格納
+    const engineErrorArray: Array<ErrorTypeForSaveAllResultDialog> =
+      result.flatMap((result) =>
+        result.result === "ENGINE_ERROR"
+          ? { path: result.path ?? "", message: result.errorMessage ?? "" }
+          : []
+      );
+
     quasarDialog({
       component: SaveAllResultDialog,
       componentProps: {
-        successArray: successArray,
-        writeErrorArray: writeErrorArray,
-        engineErrorArray: engineErrorArray,
+        successArray,
+        writeErrorArray,
+        engineErrorArray,
       },
     });
   }
@@ -129,28 +142,35 @@ export async function generateAndConnectAndSaveAudioWithDialog({
   quasarDialog,
   quasarNotify,
   dispatch,
-  filePath,
-  encoding,
+  getters,
   disableNotifyOnGenerate,
 }: {
   quasarDialog: QuasarDialog;
   quasarNotify: QuasarNotify;
   dispatch: Dispatch<AllActions>;
-  filePath?: string;
-  encoding?: EncodingType;
+  getters: AllGetters;
   disableNotifyOnGenerate: boolean;
 }): Promise<void> {
+  const defaultName: FileName = `${getters.DEFAULT_PROJECT_FILE_NAME}.wav`;
+  let filePath = await getters.FIXED_FILE_PATH(defaultName);
+  if (!filePath) {
+    const filePathResult = await getFilePathWithDialog({
+      defaultName,
+      mediaType: "audio",
+      title: "音声を全て繋げて保存",
+    });
+    if (!filePathResult.ok) return;
+    filePath = filePathResult.value;
+  }
+
   const result = await withProgress(
     dispatch("GENERATE_AND_CONNECT_AND_SAVE_AUDIO", {
       filePath,
-      encoding,
       callback: (finishedCount, totalCount) =>
         dispatch("SET_PROGRESS_FROM_COUNT", { finishedCount, totalCount }),
     }),
     dispatch
   );
-
-  if (result === undefined || result.result === "CANCELED") return;
 
   if (result.result === "SUCCESS") {
     if (disableNotifyOnGenerate) return;
@@ -168,23 +188,30 @@ export async function connectAndExportTextWithDialog({
   quasarDialog,
   quasarNotify,
   dispatch,
-  filePath,
-  encoding,
+  getters,
   disableNotifyOnGenerate,
 }: {
   quasarDialog: QuasarDialog;
   quasarNotify: QuasarNotify;
   dispatch: Dispatch<AllActions>;
-  filePath?: string;
-  encoding?: EncodingType;
+  getters: AllGetters;
   disableNotifyOnGenerate: boolean;
 }): Promise<void> {
+  const defaultName: FileName = `${getters.DEFAULT_PROJECT_FILE_NAME}.txt`;
+  let filePath = await getters.FIXED_FILE_PATH(defaultName);
+  if (!filePath) {
+    const filePathResult = await getFilePathWithDialog({
+      defaultName,
+      mediaType: "text",
+      title: "文章を全て繋げてテキストファイルに保存",
+    });
+    if (!filePathResult.ok) return;
+    filePath = filePathResult.value;
+  }
+
   const result = await dispatch("CONNECT_AND_EXPORT_TEXT", {
     filePath,
-    encoding,
   });
-
-  if (result === undefined || result.result === "CANCELED") return;
 
   if (result.result === "SUCCESS") {
     if (disableNotifyOnGenerate) return;
@@ -198,21 +225,38 @@ export async function connectAndExportTextWithDialog({
   }
 }
 
+async function getDirPathWithDialog(obj: {
+  title: string;
+}): Promise<Result<DirPath>> {
+  const dirPath = await window.electron.showOpenDirectoryDialog(obj);
+  if (!dirPath) {
+    return failure(new Error("CANCELED"));
+  }
+  return success(dirPath as DirPath);
+}
+
+async function getFilePathWithDialog(obj: {
+  defaultName: string;
+  title: string;
+  mediaType: SaveMediaType;
+}): Promise<Result<FilePath>> {
+  const filePath = await window.electron.showSaveDialog(obj);
+  if (!filePath) {
+    return failure(new Error("CANCELED"));
+  }
+  return success(filePath as FilePath);
+}
+
 // 成功時の通知を表示
 const showNotify = ({
   mediaType,
   quasarNotify,
   dispatch,
 }: {
-  mediaType: MediaType;
+  mediaType: SaveMediaType;
   quasarNotify: QuasarNotify;
   dispatch: Dispatch<AllActions>;
 }): void => {
-  const mediaTypeNames: Record<MediaType, string> = {
-    audio: "音声",
-    text: "テキスト",
-  };
-
   quasarNotify({
     message: `${mediaTypeNames[mediaType]}を書き出しました`,
     color: "toast",
@@ -241,7 +285,7 @@ const showDialog = ({
   result,
   quasarDialog,
 }: {
-  mediaType: MediaType;
+  mediaType: SaveMediaType;
   result: SaveResultObject;
   quasarDialog: QuasarDialog;
 }) => {
@@ -257,7 +301,7 @@ const showDialog = ({
         textColor: "secondary",
       },
     });
-  } else {
+  } else if (mediaType === "audio") {
     const defaultErrorMessages: Partial<Record<SaveResult, string>> = {
       WRITE_ERROR:
         "何らかの理由で書き出しに失敗しました。ログを参照してください。",
@@ -277,5 +321,8 @@ const showDialog = ({
         textColor: "secondary",
       },
     });
+  } else {
+    // プロジェクトファイルはここでは扱わない
+    throw new Error("予期せぬコードに到達しました");
   }
 };

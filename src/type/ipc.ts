@@ -11,6 +11,7 @@ import {
   EngineSetting,
   EngineId,
   MessageBoxReturnValue,
+  SaveMediaType,
 } from "@/type/preload";
 import { AltPortInfos } from "@/store/type";
 import { Result } from "@/type/result";
@@ -69,13 +70,14 @@ export type IpcIHData = {
     return: AltPortInfos;
   };
 
-  SHOW_AUDIO_SAVE_DIALOG: {
-    args: [obj: { title: string; defaultPath?: string }];
-    return?: string;
-  };
-
-  SHOW_TEXT_SAVE_DIALOG: {
-    args: [obj: { title: string; defaultPath?: string }];
+  SHOW_SAVE_DIALOG: {
+    args: [
+      obj: {
+        title: string;
+        defaultPath?: string;
+        mediaType: SaveMediaType;
+      }
+    ];
     return?: string;
   };
 
@@ -91,11 +93,6 @@ export type IpcIHData = {
 
   SHOW_IMPORT_FILE_DIALOG: {
     args: [obj: { title: string }];
-    return?: string;
-  };
-
-  SHOW_PROJECT_SAVE_DIALOG: {
-    args: [obj: { title: string; defaultPath?: string }];
     return?: string;
   };
 

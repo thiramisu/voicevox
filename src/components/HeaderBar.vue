@@ -137,7 +137,7 @@ const generateAndSaveOneAudio = async () => {
     quasarDialog: $q.dialog,
     quasarNotify: $q.notify,
     dispatch: store.dispatch,
-    encoding: store.state.savingSetting.fileEncoding,
+    getters: store.getters,
     disableNotifyOnGenerate: store.state.confirmedTips.notifyOnGenerate,
   });
 };
@@ -146,7 +146,7 @@ const generateAndSaveAllAudio = async () => {
     quasarDialog: $q.dialog,
     quasarNotify: $q.notify,
     dispatch: store.dispatch,
-    encoding: store.state.savingSetting.fileEncoding,
+    dirPath: store.getters.FIXED_DIR_PATH,
     disableNotifyOnGenerate: store.state.confirmedTips.notifyOnGenerate,
   });
 };
@@ -155,7 +155,7 @@ const generateAndConnectAndSaveAudio = async () => {
     quasarDialog: $q.dialog,
     dispatch: store.dispatch,
     quasarNotify: $q.notify,
-    encoding: store.state.savingSetting.fileEncoding,
+    getters: store.getters,
     disableNotifyOnGenerate: store.state.confirmedTips.notifyOnGenerate,
   });
 };

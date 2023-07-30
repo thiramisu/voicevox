@@ -1,3 +1,4 @@
+import { BRAND } from "zod";
 import { Patch } from "immer";
 import { QVueGlobals } from "quasar";
 import {
@@ -20,7 +21,6 @@ import {
 import {
   CharacterInfo,
   DefaultStyleId,
-  Encoding as EncodingType,
   AcceptRetrieveTelemetryStatus,
   AcceptTermsStatus,
   HotkeySetting,
@@ -52,6 +52,12 @@ import {
   PresetKey,
 } from "@/type/preload";
 import { IEngineConnectorFactory } from "@/infrastructures/EngineConnector";
+
+export type FileExtension = "vvproj" | "wav" | "lab" | "txt";
+export type FileBaseName = string & BRAND<"FileBaseName">;
+export type FileName = `${FileBaseName}.${FileExtension}` | "";
+export type DirPath = string & BRAND<"DirName">;
+export type FilePath = `${DirPath}${FileName}`;
 
 /**
  * エディタ用のAudioQuery
@@ -400,6 +406,22 @@ export type AudioStoreTypes = {
     action(payload: { audioKey: AudioKey }): Promise<Blob>;
   };
 
+  FIXED_DIR_PATH: {
+    getter: DirPath | undefined;
+  };
+
+  FIXED_FILE_PATH: {
+    getter: (defaultName: FileName) => Promise<FilePath | undefined>;
+  };
+
+  DEFAULT_PROJECT_FILE_NAME: {
+    getter: FileBaseName;
+  };
+
+  DEFAULT_AUDIO_FILE_NAME: {
+    getter: (audioKey: AudioKey) => FileName;
+  };
+
   GENERATE_AUDIO_FROM_AUDIO_ITEM: {
     action(payload: { audioItem: AudioItem }): Blob;
   };
@@ -411,32 +433,26 @@ export type AudioStoreTypes = {
   GENERATE_AND_SAVE_AUDIO: {
     action(payload: {
       audioKey: AudioKey;
-      filePath?: string;
-      encoding?: EncodingType;
+      filePath: FilePath;
     }): SaveResultObject;
   };
 
   GENERATE_AND_SAVE_ALL_AUDIO: {
     action(payload: {
-      dirPath?: string;
-      encoding?: EncodingType;
+      dirPath: DirPath;
       callback?: (finishedCount: number, totalCount: number) => void;
-    }): SaveResultObject[] | undefined;
+    }): SaveResultObject[];
   };
 
   GENERATE_AND_CONNECT_AND_SAVE_AUDIO: {
     action(payload: {
-      filePath?: string;
-      encoding?: EncodingType;
+      filePath: FilePath;
       callback?: (finishedCount: number, totalCount: number) => void;
-    }): SaveResultObject | undefined;
+    }): SaveResultObject;
   };
 
   CONNECT_AND_EXPORT_TEXT: {
-    action(payload: {
-      filePath?: string;
-      encoding?: EncodingType;
-    }): SaveResultObject | undefined;
+    action(payload: { filePath: FilePath }): SaveResultObject;
   };
 
   PLAY_AUDIO: {
@@ -468,10 +484,6 @@ export type AudioStoreTypes = {
 
   STOP_CONTINUOUSLY_AUDIO: {
     action(): void;
-  };
-
-  CHECK_FILE_EXISTS: {
-    action(payload: { file: string }): Promise<boolean>;
   };
 };
 

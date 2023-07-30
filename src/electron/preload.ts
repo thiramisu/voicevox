@@ -73,12 +73,12 @@ const api: Sandbox = {
     return await ipcRendererInvoke("GET_ALT_PORT_INFOS");
   },
 
-  showAudioSaveDialog: ({ title, defaultPath }) => {
-    return ipcRendererInvoke("SHOW_AUDIO_SAVE_DIALOG", { title, defaultPath });
-  },
-
-  showTextSaveDialog: ({ title, defaultPath }) => {
-    return ipcRendererInvoke("SHOW_TEXT_SAVE_DIALOG", { title, defaultPath });
+  showSaveDialog: ({ title, defaultPath, mediaType }) => {
+    return ipcRendererInvoke("SHOW_SAVE_DIALOG", {
+      title,
+      defaultPath,
+      mediaType,
+    });
   },
 
   showVvppOpenDialog: ({ title, defaultPath }) => {
@@ -87,13 +87,6 @@ const api: Sandbox = {
 
   showOpenDirectoryDialog: ({ title }) => {
     return ipcRendererInvoke("SHOW_OPEN_DIRECTORY_DIALOG", { title });
-  },
-
-  showProjectSaveDialog: ({ title, defaultPath }) => {
-    return ipcRendererInvoke("SHOW_PROJECT_SAVE_DIALOG", {
-      title,
-      defaultPath,
-    });
   },
 
   showProjectLoadDialog: ({ title }) => {

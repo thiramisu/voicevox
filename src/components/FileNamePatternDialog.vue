@@ -81,10 +81,12 @@ import { QInput } from "quasar";
 import { useStore } from "@/store";
 import {
   buildFileNameFromRawData,
-  DEFAULT_FILE_NAME_TEMPLATE,
+  DEFAULT_AUDIO_FILE_BASE_NAME_TEMPLATE,
+  DEFAULT_AUDIO_FILE_NAME_TEMPLATE,
   replaceTagIdToTagString,
   sanitizeFileName,
 } from "@/store/utility";
+import { FileBaseName, FileName } from "@/store/type";
 
 const props =
   defineProps<{
@@ -105,7 +107,13 @@ const tagStrings = Object.values(replaceTagIdToTagString);
 
 const savingSetting = computed(() => store.state.savingSetting);
 
-const currentFileNamePattern = ref(savingSetting.value.fileNamePattern);
+const removeExtension = (str: FileName) => {
+  return str.replace(/\.wav$/, "") as FileBaseName;
+};
+
+const currentFileNamePattern = ref(
+  removeExtension(savingSetting.value.fileNamePattern as FileName)
+);
 const sanitizedFileNamePattern = computed(() =>
   sanitizeFileName(currentFileNamePattern.value)
 );
@@ -152,23 +160,20 @@ const errorMessage = computed(() => {
 const hasError = computed(() => errorMessage.value !== "");
 
 const previewFileName = computed(() =>
-  buildFileNameFromRawData(currentFileNamePattern.value + ".wav")
+  buildFileNameFromRawData(`${currentFileNamePattern.value}.wav`)
 );
 
-const removeExtension = (str: string) => {
-  return str.replace(/\.wav$/, "");
-};
-
 const initializeInput = () => {
-  const pattern = savingSetting.value.fileNamePattern;
+  // ダイアログを開くたびにセーブデータから読み込みなおす
+  const pattern = savingSetting.value.fileNamePattern as FileName;
   currentFileNamePattern.value = removeExtension(pattern);
 
-  if (currentFileNamePattern.value.length === 0) {
-    currentFileNamePattern.value = removeExtension(DEFAULT_FILE_NAME_TEMPLATE);
+  if (currentFileNamePattern.value === "") {
+    currentFileNamePattern.value = DEFAULT_AUDIO_FILE_BASE_NAME_TEMPLATE;
   }
 };
 const resetToDefault = () => {
-  currentFileNamePattern.value = removeExtension(DEFAULT_FILE_NAME_TEMPLATE);
+  currentFileNamePattern.value = DEFAULT_AUDIO_FILE_BASE_NAME_TEMPLATE;
   patternInput.value?.focus();
 };
 
@@ -184,7 +189,7 @@ const insertTagToCurrentPosition = (tag: string) => {
     const from = elem.selectionStart ?? 0;
     const to = elem.selectionEnd ?? 0;
     const newText = text.substring(0, from) + tag + text.substring(to);
-    currentFileNamePattern.value = newText;
+    currentFileNamePattern.value = newText as FileBaseName;
 
     // キャレットの位置を挿入した後の位置にずらす
     nextTick(() => {
@@ -196,10 +201,14 @@ const insertTagToCurrentPosition = (tag: string) => {
 };
 
 const submit = async () => {
+  let fileNamePattern = `${currentFileNamePattern.value}.wav`;
+  if (fileNamePattern === DEFAULT_AUDIO_FILE_NAME_TEMPLATE) {
+    fileNamePattern = "";
+  }
   await store.dispatch("SET_SAVING_SETTING", {
     data: {
       ...savingSetting.value,
-      fileNamePattern: currentFileNamePattern.value + ".wav",
+      fileNamePattern,
     },
   });
   updateOpenDialog(false);

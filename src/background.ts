@@ -625,25 +625,29 @@ ipcMainHandle("GET_ALT_PORT_INFOS", () => {
   return engineManager.altPortInfo;
 });
 
-ipcMainHandle("SHOW_AUDIO_SAVE_DIALOG", async (_, { title, defaultPath }) => {
-  const result = await dialog.showSaveDialog(win, {
-    title,
-    defaultPath,
-    filters: [{ name: "Wave File", extensions: ["wav"] }],
-    properties: ["createDirectory"],
-  });
-  return result.filePath;
-});
-
-ipcMainHandle("SHOW_TEXT_SAVE_DIALOG", async (_, { title, defaultPath }) => {
-  const result = await dialog.showSaveDialog(win, {
-    title,
-    defaultPath,
-    filters: [{ name: "Text File", extensions: ["txt"] }],
-    properties: ["createDirectory"],
-  });
-  return result.filePath;
-});
+ipcMainHandle(
+  "SHOW_SAVE_DIALOG",
+  async (_, { title, defaultPath, mediaType }) => {
+    const filters = {
+      audio: [{ name: "Wave File", extensions: ["wav"] }],
+      text: [{ name: "Text File", extensions: ["txt"] }],
+      project: [{ name: "VOICEVOX Project file", extensions: ["vvproj"] }],
+    }[mediaType];
+    const result = await dialog.showSaveDialog(win, {
+      title,
+      defaultPath,
+      filters,
+      properties:
+        mediaType === "project"
+          ? ["showOverwriteConfirmation"]
+          : ["createDirectory"],
+    });
+    if (result.canceled) {
+      return undefined; // キャンセル時の戻り値が怪しいので明示的にundefined返す
+    }
+    return result.filePath;
+  }
+);
 
 ipcMainHandle("SHOW_VVPP_OPEN_DIALOG", async (_, { title, defaultPath }) => {
   const result = await dialog.showOpenDialog(win, {
@@ -666,19 +670,6 @@ ipcMainHandle("SHOW_OPEN_DIRECTORY_DIALOG", async (_, { title }) => {
     return undefined;
   }
   return result.filePaths[0];
-});
-
-ipcMainHandle("SHOW_PROJECT_SAVE_DIALOG", async (_, { title, defaultPath }) => {
-  const result = await dialog.showSaveDialog(win, {
-    title,
-    defaultPath,
-    filters: [{ name: "VOICEVOX Project file", extensions: ["vvproj"] }],
-    properties: ["showOverwriteConfirmation"],
-  });
-  if (result.canceled) {
-    return undefined;
-  }
-  return result.filePath;
 });
 
 ipcMainHandle("SHOW_PROJECT_LOAD_DIALOG", async (_, { title }) => {

@@ -131,7 +131,7 @@ const createNewProject = async () => {
 const generateAndSaveAllAudio = async () => {
   if (!uiLocked.value) {
     await generateAndSaveAllAudioWithDialog({
-      encoding: store.state.savingSetting.fileEncoding,
+      dirPath: store.getters.FIXED_DIR_PATH,
       disableNotifyOnGenerate: store.state.confirmedTips.notifyOnGenerate,
       quasarDialog: $q.dialog,
       quasarNotify: $q.notify,
@@ -146,7 +146,7 @@ const generateAndConnectAndSaveAllAudio = async () => {
       quasarDialog: $q.dialog,
       quasarNotify: $q.notify,
       dispatch: store.dispatch,
-      encoding: store.state.savingSetting.fileEncoding,
+      getters: store.getters,
       disableNotifyOnGenerate: store.state.confirmedTips.notifyOnGenerate,
     });
   }
@@ -171,11 +171,11 @@ const generateAndSaveOneAudio = async () => {
 
   await generateAndSaveOneAudioWithDialog({
     audioKey: activeAudioKey,
-    encoding: store.state.savingSetting.fileEncoding,
     quasarDialog: $q.dialog,
     quasarNotify: $q.notify,
     disableNotifyOnGenerate: store.state.confirmedTips.notifyOnGenerate,
     dispatch: store.dispatch,
+    getters: store.getters,
   });
 };
 
@@ -185,7 +185,7 @@ const connectAndExportText = async () => {
       quasarDialog: $q.dialog,
       quasarNotify: $q.notify,
       dispatch: store.dispatch,
-      encoding: store.state.savingSetting.fileEncoding,
+      getters: store.getters,
       disableNotifyOnGenerate: store.state.confirmedTips.notifyOnGenerate,
     });
   }

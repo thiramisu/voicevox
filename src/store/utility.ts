@@ -1,6 +1,6 @@
 import path from "path";
 import { Platform } from "quasar";
-import { State } from "@/store/type";
+import { FileBaseName, FileName } from "@/store/type";
 import { ToolbarButtonTagType, isMac } from "@/type/preload";
 
 export function sanitizeFileName(fileName: string): string {
@@ -25,49 +25,6 @@ export function sanitizeFileName(fileName: string): string {
   return fileName.replace(sanitizer, "");
 }
 
-export function buildProjectFileName(state: State, extension?: string): string {
-  const headItemText = state.audioItems[state.audioKeys[0]].text;
-
-  const tailItemText =
-    state.audioItems[state.audioKeys[state.audioKeys.length - 1]].text;
-
-  const headTailItemText =
-    state.audioKeys.length === 1
-      ? headItemText
-      : headItemText + "..." + tailItemText;
-
-  let defaultFileNameStem = sanitizeFileName(headTailItemText);
-
-  if (defaultFileNameStem === "") {
-    defaultFileNameStem = "Untitled";
-  }
-
-  return extension
-    ? `${defaultFileNameStem}.${extension}`
-    : defaultFileNameStem;
-}
-
-export const replaceTagIdToTagString = {
-  index: "連番",
-  characterName: "キャラ",
-  styleName: "スタイル",
-  text: "テキスト",
-  date: "日付",
-};
-const replaceTagStringToTagId: { [tagString: string]: string } = Object.entries(
-  replaceTagIdToTagString
-).reduce((prev, [k, v]) => ({ ...prev, [v]: k }), {});
-
-export const DEFAULT_FILE_NAME_TEMPLATE =
-  "$連番$_$キャラ$（$スタイル$）_$テキスト$.wav";
-const DEFAULT_FILE_NAME_VARIABLES = {
-  index: 0,
-  characterName: "四国めたん",
-  text: "テキストテキストテキスト",
-  styleName: "ノーマル",
-  date: currentDateString(),
-};
-
 export function currentDateString(): string {
   const currentDate = new Date();
   const year = currentDate.getFullYear();
@@ -77,10 +34,18 @@ export function currentDateString(): string {
   return `${year}${month}${date}`;
 }
 
-function replaceTag(
-  template: string,
-  replacer: { [key: string]: string }
-): string {
+export const replaceTagIdToTagString = {
+  index: "連番",
+  characterName: "キャラ",
+  styleName: "スタイル",
+  text: "テキスト",
+  date: "日付",
+} as const;
+const replaceTagStringToTagId: { [tagString: string]: string } = Object.entries(
+  replaceTagIdToTagString
+).reduce((prev, [k, v]) => ({ ...prev, [v]: k }), {});
+
+function replaceTag(template: FileName, replacer: { [key: string]: string }) {
   const result = template.replace(/\$(.+?)\$/g, (match, p1) => {
     const replaceTagId = replaceTagStringToTagId[p1];
     if (replaceTagId === undefined) {
@@ -89,7 +54,49 @@ function replaceTag(
     return replacer[replaceTagId] ?? "";
   });
 
-  return result;
+  return result as FileName;
+}
+
+export const DEFAULT_AUDIO_FILE_BASE_NAME_TEMPLATE =
+  "$連番$_$キャラ$（$スタイル$）_$テキスト$" as FileBaseName;
+export const DEFAULT_AUDIO_FILE_NAME_TEMPLATE: FileName = `${DEFAULT_AUDIO_FILE_BASE_NAME_TEMPLATE}.wav`;
+const DEFAULT_AUDIO_FILE_NAME_VARIABLES = {
+  index: 0,
+  characterName: "四国めたん",
+  text: "テキストテキストテキスト",
+  styleName: "ノーマル",
+  date: currentDateString(),
+};
+
+export function buildFileNameFromRawData(
+  fileNamePattern = DEFAULT_AUDIO_FILE_NAME_TEMPLATE,
+  vars = DEFAULT_AUDIO_FILE_NAME_VARIABLES
+) {
+  if (fileNamePattern === "") {
+    // ファイル名指定のオプションが初期値("")ならデフォルトテンプレートを使う
+    fileNamePattern = DEFAULT_AUDIO_FILE_NAME_TEMPLATE;
+  }
+
+  let text = sanitizeFileName(vars.text);
+  if (text.length > 10) {
+    text = text.substring(0, 9) + "…";
+  }
+
+  const characterName = sanitizeFileName(vars.characterName);
+
+  const index = (vars.index + 1).toString().padStart(3, "0");
+
+  const styleName = sanitizeFileName(vars.styleName);
+
+  const date = currentDateString();
+
+  return replaceTag(fileNamePattern, {
+    index,
+    characterName,
+    styleName: styleName,
+    text,
+    date,
+  });
 }
 
 export function extractExportText(text: string): string {
@@ -110,38 +117,6 @@ function skipMemoText(targettext: string): string {
   // []をスキップ
   const resolvedText = targettext.replace(/\[.*?\]/g, "");
   return resolvedText;
-}
-
-export function buildFileNameFromRawData(
-  fileNamePattern = DEFAULT_FILE_NAME_TEMPLATE,
-  vars = DEFAULT_FILE_NAME_VARIABLES
-): string {
-  let pattern = fileNamePattern;
-  if (pattern === "") {
-    // ファイル名指定のオプションが初期値("")ならデフォルトテンプレートを使う
-    pattern = DEFAULT_FILE_NAME_TEMPLATE;
-  }
-
-  let text = sanitizeFileName(vars.text);
-  if (text.length > 10) {
-    text = text.substring(0, 9) + "…";
-  }
-
-  const characterName = sanitizeFileName(vars.characterName);
-
-  const index = (vars.index + 1).toString().padStart(3, "0");
-
-  const styleName = sanitizeFileName(vars.styleName);
-
-  const date = currentDateString();
-
-  return replaceTag(pattern, {
-    index,
-    characterName,
-    styleName: styleName,
-    text,
-    date,
-  });
 }
 
 export const getToolbarButtonName = (tag: ToolbarButtonTagType): string => {

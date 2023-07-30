@@ -1,9 +1,16 @@
 import semver from "semver";
 import { z } from "zod";
-import { buildProjectFileName, getBaseName } from "./utility";
+import Encoding from "encoding-japanese";
+import { getBaseName } from "./utility";
 import { createPartialStore } from "./vuex";
-import { createUILockAction } from "@/store/ui";
-import { AudioItem, ProjectStoreState, ProjectStoreTypes } from "@/store/type";
+import { createUILockAction } from "./ui";
+import {
+  AudioItem,
+  FilePath,
+  ProjectStoreState,
+  ProjectStoreTypes,
+} from "./type";
+import { Encoding as EncodingType } from "@/type/preload";
 
 import { AccentPhrase } from "@/openapi";
 import {
@@ -21,6 +28,49 @@ const DEFAULT_SAMPLING_RATE = 24000;
 export const projectStoreState: ProjectStoreState = {
   savedLastCommandUnixMillisec: null,
 };
+
+export async function changeTailToNonExistent(
+  filePath: FilePath
+): Promise<FilePath> {
+  let tail = 1;
+  const name = filePath.slice(0, filePath.length - 4);
+  while (await window.electron.checkFileExists(filePath)) {
+    filePath = `${name}[${tail.toString()}].wav` as FilePath;
+    tail += 1;
+  }
+  return filePath;
+}
+
+export async function writeTextFile(obj: {
+  filePath: string;
+  text: string;
+  encoding?: EncodingType;
+}) {
+  obj.encoding ??= "UTF-8";
+
+  const textBlob = {
+    "UTF-8": (text: string) => {
+      const bom = new Uint8Array([0xef, 0xbb, 0xbf]);
+      return new Blob([bom, text], {
+        type: "text/plain;charset=UTF-8",
+      });
+    },
+    Shift_JIS: (text: string) => {
+      const sjisArray = Encoding.convert(Encoding.stringToCode(text), {
+        to: "SJIS",
+        type: "arraybuffer",
+      });
+      return new Blob([new Uint8Array(sjisArray)], {
+        type: "text/plain;charset=Shift_JIS",
+      });
+    },
+  }[obj.encoding](obj.text);
+
+  return window.electron.writeFile({
+    filePath: obj.filePath,
+    buffer: await textBlob.arrayBuffer(),
+  });
+}
 
 export const projectStore = createPartialStore<ProjectStoreTypes>({
   PROJECT_NAME: {
@@ -393,14 +443,15 @@ export const projectStore = createPartialStore<ProjectStoreTypes>({
 
             if (!filePath) {
               // if new project: use generated name
-              defaultPath = buildProjectFileName(context.state, "vvproj");
+              defaultPath = `${context.getters.DEFAULT_PROJECT_FILE_NAME}.vvproj`;
             } else {
               // if saveAs for existing project: use current project path
               defaultPath = filePath;
             }
 
             // Write the current status to a project file.
-            const ret = await window.electron.showProjectSaveDialog({
+            const ret = await window.electron.showSaveDialog({
+              mediaType: "project",
               title: "プロジェクトファイルの保存",
               defaultPath,
             });

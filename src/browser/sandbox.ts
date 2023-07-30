@@ -10,6 +10,7 @@ import { IpcSOData } from "@/type/ipc";
 import {
   defaultHotkeySettings,
   defaultToolbarButtonSetting,
+  SaveMediaType,
   electronStoreSchema,
   EngineId,
   EngineSetting,
@@ -75,21 +76,11 @@ export const api: Sandbox = {
     // NOTE: ブラウザ版ではサポートされていません
     return Promise.resolve({});
   },
-  showAudioSaveDialog(obj: { title: string; defaultPath?: string }) {
-    return new Promise((resolve, reject) => {
-      if (obj.defaultPath === undefined) {
-        reject(
-          // storeやvue componentからdefaultPathを設定していなかったらrejectされる
-          new Error(
-            "ブラウザ版ではファイルの保存機能が一部サポートされていません。"
-          )
-        );
-      } else {
-        resolve(obj.defaultPath);
-      }
-    });
-  },
-  showTextSaveDialog(obj: { title: string; defaultPath?: string }) {
+  showSaveDialog(obj: {
+    title: string;
+    defaultPath?: string;
+    mediaType: SaveMediaType;
+  }) {
     return new Promise((resolve, reject) => {
       if (obj.defaultPath === undefined) {
         reject(
@@ -111,20 +102,6 @@ export const api: Sandbox = {
   },
   showOpenDirectoryDialog(obj: { title: string }) {
     return showOpenDirectoryDialogImpl(obj);
-  },
-  showProjectSaveDialog(obj: { title: string; defaultPath?: string }) {
-    return new Promise((resolve, reject) => {
-      if (obj.defaultPath === undefined) {
-        reject(
-          // storeやvue componentからdefaultPathを設定していなかったらrejectされる
-          new Error(
-            "ブラウザ版ではファイルの保存機能が一部サポートされていません。"
-          )
-        );
-      } else {
-        resolve(obj.defaultPath);
-      }
-    });
   },
   showProjectLoadDialog(/* obj: { title: string } */) {
     throw new Error(

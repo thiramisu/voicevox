@@ -67,7 +67,7 @@ import { QInput } from "quasar";
 import CharacterButton from "./CharacterButton.vue";
 import { useStore } from "@/store";
 import { AudioKey, Voice } from "@/type/preload";
-import { QInputUndoStack } from "@/helpers/UndoStack";
+import { UndoStackForQInput } from "@/helpers/UndoStack";
 
 const props =
   defineProps<{
@@ -279,7 +279,7 @@ const blurCell = (event?: KeyboardEvent) => {
 const textfield = ref<QInput>();
 // TODO: EditorHome.vueとかに紐づけてSET_ACTIVE_AUDIO_KEY時にlookAt()を更新
 const hoge = ref<HTMLElement>();
-const undoStack = new QInputUndoStack();
+const undoStack = new UndoStackForQInput();
 let hasInit = false;
 const init = () => {
   if (hasInit || textfield.value === undefined || hoge.value === undefined)

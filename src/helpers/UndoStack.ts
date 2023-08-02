@@ -68,7 +68,7 @@ export class UndoStack<T extends Record<string, unknown>> {
 
 import { QInput } from "quasar";
 
-type QInputUndoData = {
+type UndoDataForQInput = {
   value: string;
   selectionStart: number;
   selectionEnd: number;
@@ -76,7 +76,7 @@ type QInputUndoData = {
 
 // FIXME: 再現できていない挙動
 //   範囲選択状態から全角入力したあとundoすると、一回範囲削除されてからIMEが追加される挙動が再現できていない
-export class QInputUndoStack extends UndoStack<QInputUndoData> {
+export class UndoStackForQInput extends UndoStack<UndoDataForQInput> {
   constructor() {
     super(false);
   }
@@ -98,7 +98,7 @@ export class QInputUndoStack extends UndoStack<QInputUndoData> {
   }
 
   /**
-   * 直前の入力タイプと比較し、違ったなら追加する。
+   * 今回の入力タイプが前回と異なる場合、履歴に追加する。
    * @param inputType 入力タイプ。`undefined`なら必ず追加する。
    * @returns 追加されたなら`true`、されなかったら`false`を返す。
    */
@@ -134,7 +134,7 @@ export class QInputUndoStack extends UndoStack<QInputUndoData> {
   undo() {
     console.log("try undo");
     if (this.pushIfNeeded("undo") || this.canUndo) {
-      return this.action(super.undo());
+      return this.restore(super.undo());
     }
     console.log("履歴なし");
     return undefined;
@@ -143,7 +143,7 @@ export class QInputUndoStack extends UndoStack<QInputUndoData> {
   redo() {
     console.log("try redo");
     this.inputTypeBefore = "redo";
-    return this.action(super.redo());
+    return this.restore(super.redo());
   }
 
   setEventListener(element: HTMLElement) {
@@ -155,11 +155,10 @@ export class QInputUndoStack extends UndoStack<QInputUndoData> {
     });
 
     // NOTE: <input type="text">でそもそも受け付けない改行を入力された場合や
-    //       範囲選択なしで切り取りされた場合などは発火しない
+    //       範囲選択なしで切り取りされた場合などはそもそも発火しない。
     element.addEventListener("beforeinput", (event: InputEvent) => {
       if (!this.isListening) return;
 
-      // 選択範囲の取得
       const isRangedSelection = this.selectionStart !== this.selectionEnd;
 
       if (!(event instanceof InputEvent)) {
@@ -206,14 +205,7 @@ export class QInputUndoStack extends UndoStack<QInputUndoData> {
     });
   }
 
-  get nativeEl() {
-    if (this._nativeEl === undefined) {
-      throw new Error("nativeElが未定義です");
-    }
-    return this._nativeEl;
-  }
-
-  private action(data: QInputUndoData | undefined) {
+  private restore(data: UndoDataForQInput | undefined) {
     if (data === undefined) {
       console.log("履歴なし");
       return data;
@@ -225,7 +217,12 @@ export class QInputUndoStack extends UndoStack<QInputUndoData> {
     return data;
   }
 
+  private get nativeEl() {
+    if (this._nativeEl === undefined) throw new Error("nativeElが未定義です");
+    return this._nativeEl;
+  }
   private _nativeEl: HTMLInputElement | HTMLTextAreaElement | undefined;
+
   private inputTypeBefore: string | undefined = undefined;
   private isListening = false;
   private get selectionStart() {

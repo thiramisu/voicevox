@@ -110,7 +110,7 @@ export class UndoStackForQInput extends UndoStack<UndoDataForQInput> {
       this.inputTypeBefore = inputType;
       return false;
     }
-    // 入力の種類の「境目」なら
+    // 入力タイプの「境目」なら
     if (
       this.inputTypeBefore !== "redo" &&
       (inputType === undefined || this.inputTypeBefore !== inputType)
@@ -161,9 +161,6 @@ export class UndoStackForQInput extends UndoStack<UndoDataForQInput> {
 
       const isRangedSelection = this.selectionStart !== this.selectionEnd;
 
-      if (!(event instanceof InputEvent)) {
-        throw new Error("inputイベントを検出できませんでした。");
-      }
       switch (event.inputType) {
         case "insertCompositionText": // IME中
           // 各専用イベントで判定
@@ -189,13 +186,17 @@ export class UndoStackForQInput extends UndoStack<UndoDataForQInput> {
       // キーボード入力
       if (event.data !== null) {
         this.pushIfNeeded(
-          event.data === " " ? "insertWhiteSpace" : "insertString"
+          event.data === " " || event.data === "　"
+            ? "insertWhiteSpace"
+            : "insertString"
         );
         return;
       }
-      throw new Error(
-        "想定外のinputTypeのイベントが発生したため、Undo操作が正常に行えません。"
+      // 未知のイベント
+      console.warn(
+        "undow/redo中に想定外のinputTypeのイベントが発生したため、Undo操作が正常に行えない可能性があります。"
       );
+      this.pushIfNeeded(undefined);
     });
 
     // IME

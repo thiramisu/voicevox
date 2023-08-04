@@ -133,6 +133,8 @@ export class UndoStackForQInput extends UndoStack<UndoDataForQInput> {
 
   undo() {
     console.log("try undo");
+    // 入力適用前にしか履歴を保存していないため、undo直前の状態を改めて保存する必要がある。
+    // 連続でundoされている場合は保存しない=falseが返るので、canUndoで別個に判定する。
     if (this.pushIfNeeded("undo") || this.canUndo) {
       return this.restore(super.undo());
     }

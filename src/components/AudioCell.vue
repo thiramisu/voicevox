@@ -235,15 +235,25 @@ const paste = async (options?: { text?: string }) => {
   );
 };
 const putMultilineText = async (texts: string[]) => {
-  // フォーカスを外して編集中のテキスト内容を確定させる
-  if (document.activeElement instanceof HTMLInputElement) {
-    document.activeElement.blur();
+  let isOriginalLastLine = false;
+  if (!textfieldSelection.isEmpty) {
+    texts = [
+      textfieldSelection.substringBefore,
+      ...texts,
+      textfieldSelection.substringAfter,
+    ];
+    isOriginalLastLine = textfieldSelection.substringAfter !== "";
   }
 
   const prevAudioKey = props.audioKey;
-  if (audioTextBuffer.value == "") {
-    const text = texts.shift();
-    if (text == undefined) throw new Error("予期せぬタイプエラーです。");
+  if (audioTextBuffer.value == "" || !textfieldSelection.isEmpty) {
+    let text: string | undefined = "";
+    while (text === "") {
+      text = texts.shift();
+    }
+    if (text === undefined) {
+      return;
+    }
     setAudioTextBuffer(text);
     await pushAudioTextIfNeeded();
   }
@@ -253,8 +263,9 @@ const putMultilineText = async (texts: string[]) => {
     voice: audioItem.value.voice,
     prevAudioKey,
   });
-  if (audioKeys.length > 0) {
-    emit("focusCell", { audioKey: audioKeys[audioKeys.length - 1] });
+  const audioKey = audioKeys.at(isOriginalLastLine ? -2 : -1);
+  if (audioKey !== undefined) {
+    emit("focusCell", { audioKey });
   }
 };
 

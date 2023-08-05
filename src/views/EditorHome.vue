@@ -572,22 +572,23 @@ onMounted(async () => {
     });
   }
 
+  const defaultStopCallback = Mousetrap.prototype.stopCallback;
+
   // ショートカットキー操作を止める条件の設定
   // 止めるなら`true`を返す
   Mousetrap.prototype.stopCallback = (
     e: Mousetrap.ExtendedKeyboardEvent, // 未使用
     element: Element,
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    combo: string // 未使用
+    combo: string, // 未使用
+    ...rest: unknown[]
   ) => {
-    return (
-      element.tagName === "INPUT" ||
-      element.tagName === "SELECT" ||
-      element.tagName === "TEXTAREA" ||
-      (element instanceof HTMLElement && element.contentEditable === "true") ||
-      // メニュー項目ではショートカットキーを無効化
-      element.classList.contains("q-item")
-    );
+    // メニュー項目ではショートカットキーを無効化
+    if (element.classList.contains("q-item")) {
+      return true;
+    }
+
+    return defaultStopCallback(e, element, combo, ...rest);
   };
 
   // ショートカットキーの設定
